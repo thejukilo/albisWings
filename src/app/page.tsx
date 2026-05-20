@@ -74,7 +74,7 @@ export default async function CheckInPage() {
 
   const { data: myReservations } = await supabase
     .from('v_reservation_grid')
-    .select('id, registration, starts_at, ends_at, purpose, remarks')
+    .select('id, registration, starts_at, ends_at, purpose, remarks, instructor_name')
     .eq('pilot_id', user.id)
     .gte('starts_at', new Date().toISOString())
     .order('starts_at', { ascending: true })
@@ -156,26 +156,43 @@ export default async function CheckInPage() {
           <section className="mb-10">
             <h2 className="text-xl text-feather mb-3">Bevorstehende Flüge mit Schülern</h2>
             <div className="border border-neutral-200 overflow-hidden">
-              <div className="grid grid-cols-[auto_auto_1fr_auto_auto] bg-cream text-navy-800 text-sm font-medium">
-                <div className="py-2 px-4">Flugzeug</div>
-                <div className="py-2 px-4">Beginn</div>
-                <div className="py-2 px-4">Schüler</div>
-                <div className="py-2 px-4">Zweck</div>
-                <div className="py-2 px-4">Bemerkung</div>
+              <div className="grid grid-cols-[max-content_max-content_max-content_max-content_1fr] text-sm">
+                {/* Header */}
+                <div className="contents text-navy-800 font-medium">
+                  <div className="py-2 px-4 bg-cream">Flugzeug</div>
+                  <div className="py-2 px-4 bg-cream">Beginn</div>
+                  <div className="py-2 px-4 bg-cream">Schüler</div>
+                  <div className="py-2 px-4 bg-cream">Zweck</div>
+                  <div className="py-2 px-4 bg-cream">Bemerkung</div>
+                </div>
+                {/* Rows */}
+                {myInstructorFlights.map((r, i) => {
+                  const bg = i % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/reservations/${r.id}`}
+                      className="contents group"
+                    >
+                      <div className={`py-2 px-4 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        <span className="reg-plate">{r.registration}</span>
+                      </div>
+                      <div className={`py-2 px-4 text-neutral-700 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        {format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}
+                      </div>
+                      <div className={`py-2 px-4 text-navy-800 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        {r.pilot_name ?? '—'}
+                      </div>
+                      <div className={`py-2 px-4 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        <PurposeBadge purpose={r.purpose as string} />
+                      </div>
+                      <div className={`py-2 px-4 text-neutral-700 ${bg} group-hover:bg-cream-50 transition-colors truncate`}>
+                        {r.remarks ?? '—'}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-              {myInstructorFlights.map((r, i) => (
-                <Link
-                  key={r.id}
-                  href={`/reservations/${r.id}`}
-                  className={`grid grid-cols-[auto_auto_1fr_auto_auto] text-sm hover:bg-cream-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}
-                >
-                  <div className="py-2 px-4"><span className="reg-plate">{r.registration}</span></div>
-                  <div className="py-2 px-4 text-neutral-700">{format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}</div>
-                  <div className="py-2 px-4 text-navy-800">{r.pilot_name ?? '—'}</div>
-                  <div className="py-2 px-4"><PurposeBadge purpose={r.purpose as string} /></div>
-                  <div className="py-2 px-4 text-neutral-700 truncate">{r.remarks ?? '—'}</div>
-                </Link>
-              ))}
             </div>
           </section>
         )}
@@ -185,26 +202,47 @@ export default async function CheckInPage() {
           <h2 className="text-xl text-feather mb-3">Meine Reservationen</h2>
           {myReservations && myReservations.length > 0 ? (
             <div className="border border-neutral-200 overflow-hidden">
-              <div className="grid grid-cols-[auto_auto_auto_auto_1fr] bg-cream text-navy-800 text-sm font-medium">
-                <div className="py-2 px-4">Flugzeug</div>
-                <div className="py-2 px-4">Beginn</div>
-                <div className="py-2 px-4">Ende</div>
-                <div className="py-2 px-4">Zweck</div>
-                <div className="py-2 px-4">Bemerkung</div>
+              <div className="grid grid-cols-[max-content_max-content_max-content_max-content_max-content_1fr] text-sm">
+                {/* Header */}
+                <div className="contents text-navy-800 font-medium">
+                  <div className="py-2 px-4 bg-cream">Flugzeug</div>
+                  <div className="py-2 px-4 bg-cream">Beginn</div>
+                  <div className="py-2 px-4 bg-cream">Ende</div>
+                  <div className="py-2 px-4 bg-cream">Zweck</div>
+                  <div className="py-2 px-4 bg-cream">Lehrer</div>
+                  <div className="py-2 px-4 bg-cream">Bemerkung</div>
+                </div>
+                {/* Rows */}
+                {myReservations.map((r, i) => {
+                  const bg = i % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/reservations/${r.id}`}
+                      className="contents group"
+                    >
+                      <div className={`py-2 px-4 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        <span className="reg-plate">{r.registration}</span>
+                      </div>
+                      <div className={`py-2 px-4 text-neutral-700 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        {format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}
+                      </div>
+                      <div className={`py-2 px-4 text-neutral-700 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        {format(new Date(r.ends_at), 'dd.MM.yyyy HH:mm')}
+                      </div>
+                      <div className={`py-2 px-4 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        <PurposeBadge purpose={r.purpose as string} />
+                      </div>
+                      <div className={`py-2 px-4 text-neutral-700 ${bg} group-hover:bg-cream-50 transition-colors`}>
+                        {r.instructor_name ?? '—'}
+                      </div>
+                      <div className={`py-2 px-4 text-neutral-700 ${bg} group-hover:bg-cream-50 transition-colors truncate`}>
+                        {r.remarks ?? '—'}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-              {myReservations.map((r, i) => (
-                <Link
-                  key={r.id}
-                  href={`/reservations/${r.id}`}
-                  className={`grid grid-cols-[auto_auto_auto_auto_1fr] text-sm hover:bg-cream-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}
-                >
-                  <div className="py-2 px-4"><span className="reg-plate">{r.registration}</span></div>
-                  <div className="py-2 px-4 text-neutral-700">{format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}</div>
-                  <div className="py-2 px-4 text-neutral-700">{format(new Date(r.ends_at), 'dd.MM.yyyy HH:mm')}</div>
-                  <div className="py-2 px-4"><PurposeBadge purpose={r.purpose as string} /></div>
-                  <div className="py-2 px-4 text-neutral-700 truncate">{r.remarks ?? '—'}</div>
-                </Link>
-              ))}
             </div>
           ) : (
             <div className="border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-500">
