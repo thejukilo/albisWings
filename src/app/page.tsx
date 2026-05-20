@@ -102,6 +102,11 @@ export default async function CheckInPage() {
     .select('aircraft_id, registration, grounding_defects, open_defects')
     .gt('open_defects', 0);
 
+  const { data: aogAircraft } = await supabase
+    .from('v_open_techlog')
+    .select('aircraft_id, registration, grounding_defects')
+    .gt('grounding_defects', 0);
+
   const userName = me?.display_name ?? user.email ?? 'Member';
 
   return (
@@ -125,7 +130,39 @@ export default async function CheckInPage() {
           </div>
         )}
 
-        {/* Open techlog -- styled like the salmon alert box in the screenshot */}
+        {/* AOG aircraft — prominent red banner with link */}
+        {aogAircraft && aogAircraft.length > 0 && (
+          <div className="mb-4 border-l-4 border-red-600 bg-red-50 p-4">
+            <div className="flex items-start gap-3">
+              <span className="bg-red-600 text-white text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-sm flex-shrink-0">
+                AOG
+              </span>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-red-900 mb-1">
+                  {aogAircraft.length === 1 ? 'Ein Flugzeug ist Aircraft On Ground' : `${aogAircraft.length} Flugzeuge sind Aircraft On Ground`}
+                </div>
+                <div className="text-sm text-red-800">
+                  {aogAircraft.map((a, i) => (
+                    <span key={a.aircraft_id}>
+                      {i > 0 && ', '}
+                      <Link href={`/techlog/${a.aircraft_id}`} className="reg-plate hover:underline">
+                        {a.registration}
+                      </Link>
+                      <span className="ml-1 text-red-700 text-xs">
+                        ({a.grounding_defects} Grounding-{a.grounding_defects === 1 ? 'Eintrag' : 'Einträge'})
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <div className="text-[11px] text-red-700 mt-1">
+                  Solo-Reservation gesperrt bis Eintrag durch Mechaniker geschlossen.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Open non-AOG defects -- subtler line */}
         {openDefects && openDefects.length > 0 && (
           <div className="mb-8 border border-signal/40 bg-cream-50 py-2 px-4 text-sm">
             <span className="text-signal-600 font-medium">Offene Techlog-Einträge:</span>
@@ -133,7 +170,9 @@ export default async function CheckInPage() {
               {openDefects.map((d, i) => (
                 <span key={d.aircraft_id}>
                   {i > 0 && ', '}
-                  <span className="reg-plate">{d.registration}</span>
+                  <Link href={`/techlog/${d.aircraft_id}`} className="reg-plate hover:underline">
+                    {d.registration}
+                  </Link>
                   <span className="ml-1 text-neutral-500">
                     {d.open_defects} offen{(d.grounding_defects ?? 0) > 0 && `, ${d.grounding_defects} AOG`}
                   </span>
