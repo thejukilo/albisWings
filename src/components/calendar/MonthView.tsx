@@ -7,10 +7,12 @@ export function MonthView({
   anchor,
   reservations,
   myUserId,
+  highlightedInstructors,
 }: {
   anchor: Date;
   reservations: ReservationRow[];
   myUserId: string;
+  highlightedInstructors: Set<string>;
 }) {
   const moStart = startOfMonth(anchor);
   const gridStart = startOfWeek(moStart, { weekStartsOn: 1 });
@@ -66,13 +68,14 @@ export function MonthView({
               {visible.map((r) => {
                 const isMine = r.pilot_id === myUserId;
                 const isUnstaffed = r.pilot_id === null;
+                const isHighlighted = r.instructor_id != null && highlightedInstructors.has(r.instructor_id);
                 const label = isUnstaffed
                   ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby')
                   : isMine ? `${r.pilot_name} (du)` : r.pilot_name;
                 return (
                   <div
                     key={r.id}
-                    className={`text-[9px] px-1.5 py-0.5 rounded truncate ${eventClasses(r.purpose, isMine)}`}
+                    className={`text-[9px] px-1.5 py-0.5 rounded truncate ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-1 ring-signal-DEFAULT ring-inset' : ''}`}
                   >
                     <span className="font-mono">{r.registration}</span>
                     {' · '}

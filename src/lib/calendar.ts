@@ -110,6 +110,22 @@ export function eventClasses(purpose: string, isMine: boolean): string {
 /** German short day-of-week labels Mo, Di, ... starting Monday */
 export const DOW_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
+/** Aircraft tint palette in fixed order. The index of an aircraft in the
+ *  sorted aircraft list determines its tint. Stable across renders.
+ */
+const AIRCRAFT_TINTS = [
+  { bg: 'bg-ac-blue',   chip: 'bg-ac-blue-strong'   },
+  { bg: 'bg-ac-amber',  chip: 'bg-ac-amber-strong'  },
+  { bg: 'bg-ac-purple', chip: 'bg-ac-purple-strong' },
+  { bg: 'bg-ac-teal',   chip: 'bg-ac-teal-strong'   },
+  { bg: 'bg-ac-pink',   chip: 'bg-ac-pink-strong'   },
+  { bg: 'bg-ac-slate',  chip: 'bg-ac-slate-strong'  },
+] as const;
+
+export function aircraftTint(index: number): { bg: string; chip: string } {
+  return AIRCRAFT_TINTS[index % AIRCRAFT_TINTS.length];
+}
+
 export function isoDow(d: Date): number {
   // Monday = 0, Sunday = 6
   const js = getDay(d); // Sun=0..Sat=6

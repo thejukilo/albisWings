@@ -3,18 +3,20 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTransition } from 'react';
 import type { Aircraft, Instructor } from '@/lib/types';
+import { aircraftTint } from '@/lib/calendar';
 
 export function CalendarSidebar({
   aircraft,
   instructors,
   selectedAircraft,
-  selectedInstructors,
+  highlightedInstructors,
   myUserId,
 }: {
   aircraft: Aircraft[];
   instructors: Instructor[];
   selectedAircraft: Set<string>;
-  selectedInstructors: Set<string>;
+  /** Instructors to visually highlight on the grid (no longer a filter) */
+  highlightedInstructors: Set<string>;
   myUserId: string;
 }) {
   const router = useRouter();
@@ -24,7 +26,6 @@ export function CalendarSidebar({
 
   function updateParam(key: string, values: Set<string>, allValues: string[]) {
     const next = new URLSearchParams(sp.toString());
-    // If everything is selected, drop the param to keep URLs short.
     if (values.size === allValues.length || values.size === 0) {
       next.delete(key);
     } else {
@@ -40,21 +41,21 @@ export function CalendarSidebar({
   }
 
   function toggleInstructor(id: string) {
-    const next = new Set(selectedInstructors);
+    const next = new Set(highlightedInstructors);
     if (next.has(id)) next.delete(id); else next.add(id);
     updateParam('fi', next, instructors.map(i => i.id));
   }
 
-  const allAircraftOn   = selectedAircraft.size === aircraft.length || selectedAircraft.size === 0;
-  const noInstructorFilter = selectedInstructors.size === 0 || selectedInstructors.size === instructors.length;
+  const allAircraftOn = selectedAircraft.size === aircraft.length || selectedAircraft.size === 0;
 
   return (
     <aside className="border-r border-neutral-200 bg-neutral-50 p-4 text-sm space-y-6 w-[200px] flex-shrink-0">
       <div>
         <h3 className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium mb-2">Flugzeuge</h3>
         <ul className="space-y-0.5">
-          {aircraft.map((a) => {
+          {aircraft.map((a, idx) => {
             const on = allAircraftOn || selectedAircraft.has(a.id);
+            const tint = aircraftTint(idx);
             return (
               <li key={a.id}>
                 <label className="flex items-center gap-2 px-1.5 py-1 rounded-sm cursor-pointer hover:bg-neutral-100">
@@ -64,6 +65,7 @@ export function CalendarSidebar({
                     onChange={() => toggleAircraft(a.id)}
                     className="accent-navy-800"
                   />
+                  <span className={`inline-block w-3 h-3 rounded-sm ${tint.chip}`} />
                   <span className="text-navy-800 font-mono text-xs">{a.registration}</span>
                 </label>
               </li>
@@ -76,7 +78,7 @@ export function CalendarSidebar({
         <h3 className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium mb-2">Fluglehrer</h3>
         <ul className="space-y-0.5">
           {instructors.map((i) => {
-            const on = !noInstructorFilter && selectedInstructors.has(i.id);
+            const on = highlightedInstructors.has(i.id);
             return (
               <li key={i.id}>
                 <label className={`flex items-center gap-2 px-1.5 py-1 rounded-sm cursor-pointer hover:bg-neutral-100 ${on ? 'bg-navy-800 text-cream' : ''}`}>
@@ -92,9 +94,9 @@ export function CalendarSidebar({
             );
           })}
         </ul>
-        {!noInstructorFilter && (
+        {highlightedInstructors.size > 0 && (
           <p className="text-[10px] text-neutral-500 mt-2 leading-tight">
-            Filter aktiv: nur Reservationen mit gewähltem Lehrer
+            Reservationen markierter Lehrer haben einen orangenen Rand.
           </p>
         )}
       </div>

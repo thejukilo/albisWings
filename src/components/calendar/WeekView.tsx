@@ -1,34 +1,40 @@
 import { addDays, startOfWeek, isSameDay } from 'date-fns';
 import Link from 'next/link';
-import type { ReservationRow } from '@/lib/types';
-import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, DOW_LABELS, eventClasses, formatLocal, getLocalParts } from '@/lib/calendar';
+import type { Aircraft, ReservationRow } from '@/lib/types';
+import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, DOW_LABELS, eventClasses, formatLocal, getLocalParts, aircraftTint } from '@/lib/calendar';
 
 export function WeekView({
   anchor,
+  aircraft,
+  selectedAircraftIds,
   reservations,
   myUserId,
+  highlightedInstructors,
 }: {
   anchor: Date;
+  aircraft: Aircraft[];
+  selectedAircraftIds: Set<string>;
   reservations: ReservationRow[];
   myUserId: string;
+  highlightedInstructors: Set<string>;
 }) {
   const wkStart = startOfWeek(anchor, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }).map((_, i) => addDays(wkStart, i));
   const today = new Date();
 
-  // Bucket events by day using club-local date.
-  // For multi-day reservations, register the event on every day it touches
-  // so each daily column renders its slice.
+  const visibleAircraft = aircraft.filter(a => selectedAircraftIds.size === 0 || selectedAircraftIds.has(a.id));
+  const acIndexById = new Map(aircraft.map((a, i) => [a.id, i]));
+
+  // Bucket events by day (club-local). Multi-day events repeat on each day they touch.
   const byDay = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
+    if (!selectedAircraftIds.has(r.aircraft_id) && selectedAircraftIds.size !== 0) continue;
     const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
     const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
     if (startKey === endKey) {
       if (!byDay.has(startKey)) byDay.set(startKey, []);
       byDay.get(startKey)!.push(r);
     } else {
-      // Walk the days in the displayed week and add the event to each one
-      // whose local date falls within [startKey, endKey].
       for (const d of days) {
         const k = formatLocal(d, 'yyyy-MM-dd');
         if (k >= startKey && k <= endKey) {
@@ -39,30 +45,58 @@ export function WeekView({
     }
   }
 
-  const HOUR_PX = 38;
+  const HOUR_PX = 36;
+  const N = visibleAircraft.length;
+  if (N === 0) {
+    return (
+      <div className="p-10 text-center text-neutral-500">
+        Keine Flugzeuge ausgewählt — bitte mindestens eines in der Seitenleiste anklicken.
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-x-auto">
       <div
         className="grid border-t border-neutral-200"
-        style={{ gridTemplateColumns: `60px repeat(7, minmax(120px, 1fr))` }}
+        style={{ gridTemplateColumns: `48px repeat(7, minmax(${N * 32}px, 1fr))` }}
       >
+        {/* Header: corner + 7 day headers each with sub-columns */}
         <div className="bg-neutral-50 border-b border-r border-neutral-200" />
         {days.map((d, i) => {
           const isToday = isSameDay(d, today);
           return (
             <div
               key={d.toISOString()}
-              className={`bg-white border-b border-r border-neutral-200 py-2 text-center ${isToday ? 'bg-cream-50' : ''}`}
+              className={`border-b border-r-[1.5px] border-neutral-200 border-r-neutral-300 ${isToday ? 'bg-cream-50' : 'bg-white'}`}
             >
-              <div className="text-[10px] uppercase tracking-wider text-neutral-500">{DOW_LABELS[i]}</div>
-              <div className={`text-lg font-medium ${isToday ? 'text-signal-600' : 'text-navy-800'}`}>
-                {formatLocal(d, 'd')}
+              <div className="text-center pt-1 pb-0.5">
+                <div className="text-[10px] uppercase tracking-wider text-neutral-500">{DOW_LABELS[i]}</div>
+                <div className={`text-lg font-medium leading-tight ${isToday ? 'text-signal-600' : 'text-navy-800'}`}>
+                  {formatLocal(d, 'd')}
+                </div>
+              </div>
+              <div
+                className="grid border-t border-neutral-100"
+                style={{ gridTemplateColumns: `repeat(${N}, 1fr)` }}
+              >
+                {visibleAircraft.map((a) => {
+                  const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
+                  return (
+                    <div
+                      key={a.id}
+                      className={`text-center py-0.5 text-[9px] font-mono text-navy-800 border-r border-neutral-100 last:border-r-0 ${tint.bg}`}
+                    >
+                      {a.registration.replace('HB-', '')}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
         })}
 
+        {/* Hour rows */}
         {Array.from({ length: HOURS_VISIBLE }).map((_, h) => {
           const hour = DAY_START_HOUR + h;
           return (
@@ -74,23 +108,34 @@ export function WeekView({
                 {hour.toString().padStart(2, '0')}:00
               </div>
               {days.map((d) => (
-                <Link
-                  key={`cell-${d.toISOString()}-${h}`}
-                  href={`/reservations/new?date=${formatLocal(d, 'yyyy-MM-dd')}&hour=${hour}`}
-                  className="border-r border-b border-neutral-100 relative hover:bg-cream/40 transition-colors"
-                  style={{ height: HOUR_PX }}
-                  aria-label={`Neue Reservation ${formatLocal(d, 'dd.MM.')} ${hour}:00`}
-                />
+                <div
+                  key={`day-${d.toISOString()}-${h}`}
+                  className="border-r-[1.5px] border-r-neutral-300 border-b border-b-neutral-100 grid"
+                  style={{ gridTemplateColumns: `repeat(${N}, 1fr)`, height: HOUR_PX }}
+                >
+                  {visibleAircraft.map((a) => {
+                    const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
+                    return (
+                      <Link
+                        key={`cell-${a.id}-${d.toISOString()}-${h}`}
+                        href={`/reservations/new?aircraft=${a.id}&date=${formatLocal(d, 'yyyy-MM-dd')}&hour=${hour}`}
+                        className={`${tint.bg} border-r border-r-white/40 last:border-r-0 hover:brightness-95 transition-all`}
+                        aria-label={`Neue Reservation ${a.registration} ${formatLocal(d, 'dd.MM.')} ${hour}:00`}
+                      />
+                    );
+                  })}
+                </div>
               ))}
             </div>
           );
         })}
       </div>
 
+      {/* Overlay events absolutely-positioned per day, per aircraft sub-column */}
       <div className="relative" style={{ marginTop: -(HOURS_VISIBLE * HOUR_PX), pointerEvents: 'none' }}>
         <div
           className="grid"
-          style={{ gridTemplateColumns: `60px repeat(7, minmax(120px, 1fr))` }}
+          style={{ gridTemplateColumns: `48px repeat(7, minmax(${N * 32}px, 1fr))` }}
         >
           <div />
           {days.map((d) => {
@@ -99,10 +144,11 @@ export function WeekView({
             return (
               <div key={dKey} className="relative" style={{ height: HOURS_VISIBLE * HOUR_PX }}>
                 {evs.map((r) => {
+                  const acIdx = visibleAircraft.findIndex(a => a.id === r.aircraft_id);
+                  if (acIdx < 0) return null; // aircraft hidden -- skip
+
                   const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
                   const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
-                  // Clip per-day: if event started before this column, treat as DAY_START_HOUR.
-                  // If it continues past this column, treat as DAY_END_HOUR.
                   const startParts = getLocalParts(r.starts_at);
                   const endParts   = getLocalParts(r.ends_at);
                   const startH = startKey === dKey ? startParts.hour + startParts.minute / 60 : DAY_START_HOUR;
@@ -112,20 +158,33 @@ export function WeekView({
                   if (clippedEnd <= clippedStart) return null;
                   const topPx    = (clippedStart - DAY_START_HOUR) * HOUR_PX;
                   const heightPx = (clippedEnd - clippedStart) * HOUR_PX;
+
                   const isMine = r.pilot_id === myUserId;
                   const isUnstaffed = r.pilot_id === null;
+                  const isHighlighted = r.instructor_id != null && highlightedInstructors.has(r.instructor_id);
+
+                  // Position within this day's row: each sub-column is 1/N
+                  const leftPct  = (acIdx / N) * 100;
+                  const widthPct = (1 / N) * 100;
+
                   return (
                     <Link
                       key={r.id}
                       href={`/reservations/${r.id}`}
-                      className={`absolute left-0.5 right-0.5 rounded px-1.5 py-0.5 text-[9px] leading-tight overflow-hidden ${eventClasses(r.purpose, isMine)}`}
-                      style={{ top: topPx, height: heightPx, pointerEvents: 'auto' }}
+                      className={`absolute rounded-sm px-1 py-0.5 text-[8px] leading-tight overflow-hidden ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-2 ring-signal-DEFAULT ring-inset' : ''}`}
+                      style={{
+                        top: topPx,
+                        height: heightPx,
+                        left: `calc(${leftPct}% + 1px)`,
+                        width: `calc(${widthPct}% - 2px)`,
+                        pointerEvents: 'auto',
+                      }}
+                      title={`${r.registration} · ${isUnstaffed ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby') : r.pilot_name}`}
                     >
-                      <div className="font-mono font-medium truncate">{r.registration}</div>
-                      <div className="truncate">
+                      <div className="truncate font-medium">
                         {isUnstaffed
                           ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby')
-                          : isMine ? `${r.pilot_name} (du)` : r.pilot_name}
+                          : isMine ? `${r.pilot_name.split(' ')[0]} (du)` : r.pilot_name.split(' ')[0]}
                       </div>
                     </Link>
                   );

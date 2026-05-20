@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import type { Aircraft, ReservationRow } from '@/lib/types';
-import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight } from '@/lib/calendar';
+import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight, aircraftTint } from '@/lib/calendar';
 
 export function DayView({
   date,
   aircraft,
   reservations,
   myUserId,
+  highlightedInstructors,
 }: {
   date: Date;
   aircraft: Aircraft[];
   reservations: ReservationRow[];
   myUserId: string;
+  highlightedInstructors: Set<string>;
 }) {
   const byAircraft = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
@@ -29,12 +31,15 @@ export function DayView({
         style={{ gridTemplateColumns: `60px repeat(${aircraft.length}, minmax(140px, 1fr))` }}
       >
         <div className="bg-neutral-50 border-b border-r border-neutral-200" />
-        {aircraft.map((a) => (
-          <div key={a.id} className="bg-white border-b border-r border-neutral-200 px-3 py-2 text-center">
-            <div className="inline-block bg-navy-800 text-cream font-mono text-xs px-2 py-0.5 rounded-sm">{a.registration}</div>
-            <div className="text-[10px] text-neutral-500 mt-1">{a.manufacturer} {a.model}</div>
-          </div>
-        ))}
+        {aircraft.map((a, idx) => {
+          const tint = aircraftTint(idx);
+          return (
+            <div key={a.id} className={`${tint.bg} border-b border-r border-neutral-200 px-3 py-2 text-center`}>
+              <div className="inline-block bg-navy-800 text-cream font-mono text-xs px-2 py-0.5 rounded-sm">{a.registration}</div>
+              <div className="text-[10px] text-neutral-500 mt-1">{a.manufacturer} {a.model}</div>
+            </div>
+          );
+        })}
 
         {Array.from({ length: HOURS_VISIBLE }).map((_, h) => {
           const hour = DAY_START_HOUR + h;
@@ -46,15 +51,18 @@ export function DayView({
               >
                 {hour.toString().padStart(2, '0')}:00
               </div>
-              {aircraft.map((a) => (
-                <Link
-                  key={`cell-${a.id}-${h}`}
-                  href={`/reservations/new?aircraft=${a.id}&date=${dateKey}&hour=${hour}`}
-                  className="border-r border-b border-neutral-100 relative group hover:bg-cream/40 transition-colors"
-                  style={{ height: HOUR_PX }}
-                  aria-label={`Neue Reservation ${a.registration} ${hour}:00`}
-                />
-              ))}
+              {aircraft.map((a, idx) => {
+                const tint = aircraftTint(idx);
+                return (
+                  <Link
+                    key={`cell-${a.id}-${h}`}
+                    href={`/reservations/new?aircraft=${a.id}&date=${dateKey}&hour=${hour}`}
+                    className={`${tint.bg} border-r border-b border-neutral-100 hover:brightness-95 transition-all`}
+                    style={{ height: HOUR_PX }}
+                    aria-label={`Neue Reservation ${a.registration} ${hour}:00`}
+                  />
+                );
+              })}
             </div>
           );
         })}
@@ -71,7 +79,6 @@ export function DayView({
             return (
               <div key={a.id} className="relative" style={{ height: HOURS_VISIBLE * HOUR_PX }}>
                 {evs.map((r) => {
-                  // Position relative to club-local midnight of the displayed date.
                   const startH = localHoursFromMidnight(r.starts_at, date);
                   const endH   = localHoursFromMidnight(r.ends_at,   date);
                   const clippedStart = Math.max(startH, DAY_START_HOUR);
@@ -81,11 +88,12 @@ export function DayView({
                   const heightPx = (clippedEnd - clippedStart) * HOUR_PX;
                   const isMine = r.pilot_id === myUserId;
                   const isUnstaffed = r.pilot_id === null;
+                  const isHighlighted = r.instructor_id != null && highlightedInstructors.has(r.instructor_id);
                   return (
                     <Link
                       key={r.id}
                       href={`/reservations/${r.id}`}
-                      className={`absolute left-0.5 right-0.5 rounded px-2 py-1 text-[10px] leading-tight overflow-hidden ${eventClasses(r.purpose, isMine)}`}
+                      className={`absolute left-0.5 right-0.5 rounded px-2 py-1 text-[10px] leading-tight overflow-hidden ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-2 ring-signal-DEFAULT ring-inset' : ''}`}
                       style={{ top: topPx, height: heightPx, pointerEvents: 'auto' }}
                     >
                       <div className="font-medium truncate">

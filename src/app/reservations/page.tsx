@@ -29,7 +29,6 @@ export default async function ReservationsPage({
 
   const sp = await searchParams;
 
-  // Normalize URL params
   const view: ViewMode = sp.view === 'day' || sp.view === 'month' ? sp.view : 'week';
   let anchor = new Date();
   if (sp.date) {
@@ -68,35 +67,31 @@ export default async function ReservationsPage({
     display_name: r.display_name, initials: r.initials,
   }));
 
-  // Parse filter sets
+  // Aircraft filter still hides aircraft columns. Instructor "filter" now only
+  // highlights -- it never removes events from the SQL query.
   const selectedAircraft = new Set<string>(sp.ac ? sp.ac.split(',') : aircraft.map(a => a.id));
-  const selectedInstructors = new Set<string>(sp.fi ? sp.fi.split(',') : []);
+  const highlightedInstructors = new Set<string>(sp.fi ? sp.fi.split(',') : []);
 
-  // Fetch reservations for the range, applying filters
-  let q = supabase
+  // Fetch reservations for the range. We always fetch all aircraft because
+  // the highlight feature needs to show instructor bookings even on hidden
+  // aircraft columns. The view itself decides what to render.
+  const { data: rRows } = await supabase
     .from('v_reservation_grid')
     .select('*')
     .gte('starts_at', from.toISOString())
     .lte('starts_at', to.toISOString())
     .order('starts_at', { ascending: true });
-  if (selectedAircraft.size > 0 && selectedAircraft.size < aircraft.length) {
-    q = q.in('aircraft_id', Array.from(selectedAircraft));
-  }
-  if (selectedInstructors.size > 0) {
-    q = q.in('instructor_id', Array.from(selectedInstructors));
-  }
-  const { data: rRows } = await q;
   const reservations: ReservationRow[] = (rRows ?? []) as ReservationRow[];
 
-  // For Day view we may want to filter aircraft list to selected ones for cleaner UI
-  const aircraftForGrid = view === 'day'
-    ? aircraft.filter(a => selectedAircraft.has(a.id))
-    : aircraft;
+  // For Day view, the aircraft list passed down is filtered to selected ones
+  // (column count drops). Week view keeps all 5 lanes per day, but applies
+  // a hidden style to unselected ones inside the view.
+  const aircraftForDay = aircraft.filter(a => selectedAircraft.has(a.id));
 
   return (
     <>
       <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="reservations" />
-      <div className="max-w-[1400px] mx-auto px-4 py-6">
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
         <div className="mb-5">
           <h1 className="text-3xl font-semibold text-navy-800">Reservationen</h1>
           <p className="text-feather">Klicke einen freien Slot um zu reservieren.</p>
@@ -107,14 +102,14 @@ export default async function ReservationsPage({
             aircraft={aircraft}
             instructors={instructors}
             selectedAircraft={selectedAircraft}
-            selectedInstructors={selectedInstructors}
+            highlightedInstructors={highlightedInstructors}
             myUserId={user.id}
           />
           <div className="flex-1 min-w-0">
             <CalendarToolbar view={view} anchor={anchor} />
-            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForGrid} reservations={reservations} myUserId={user.id} />}
-            {view === 'week'  && <WeekView  anchor={anchor} reservations={reservations} myUserId={user.id} />}
-            {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
+            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} highlightedInstructors={highlightedInstructors} />}
+            {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} highlightedInstructors={highlightedInstructors} />}
+            {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} highlightedInstructors={highlightedInstructors} />}
           </div>
         </div>
       </div>
