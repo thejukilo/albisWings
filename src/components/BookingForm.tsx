@@ -69,14 +69,18 @@ export function BookingForm({
     e.preventDefault();
     setSubmitError(null);
     startTransition(async () => {
+      const remarkParts = [
+        destination && `Flugziel: ${destination}`,
+        seats && `Freie Plätze: ${seats}`,
+        plannedHours && `Geplant: ${plannedHours}`,
+      ].filter(Boolean);
       const res = await createReservation({
         aircraftId,
         startsAt: new Date(startsAt).toISOString(),
         endsAt: new Date(endsAt).toISOString(),
         purpose,
         instructorId: instructorId || null,
-        destinationIcao: destination || undefined,
-        remarks: [seats && `Freie Plätze: ${seats}`, plannedHours && `Geplant: ${plannedHours}`].filter(Boolean).join(' · ') || undefined,
+        remarks: remarkParts.length > 0 ? remarkParts.join(' · ') : undefined,
       });
       if (res.ok) {
         router.push('/reservations');
