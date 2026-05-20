@@ -147,7 +147,11 @@ export function DayView({
                         {formatLocal(r.starts_at, 'HH:mm')}–{formatLocal(r.ends_at, 'HH:mm')}
                       </div>
                       {r.instructor_name && (
-                        <div className="opacity-85 truncate mt-auto pt-0.5 border-t border-white/25 text-[9px]">
+                        <div className={`truncate mt-auto pt-0.5 border-t border-white/25 text-[9px] -mx-1 px-1 ${
+                          r.instructor_id === myUserId
+                            ? 'bg-navy-800 text-cream font-semibold'
+                            : 'opacity-85'
+                        }`}>
                           + {shortenName(r.instructor_name).short}
                         </div>
                       )}

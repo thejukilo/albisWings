@@ -228,7 +228,11 @@ export function WeekView({
                           : isMine ? `${pilotShort(r.pilot_name)} (du)` : pilotShort(r.pilot_name)}
                       </div>
                       {r.instructor_name && (
-                        <div className="truncate opacity-80 mt-auto pt-0.5 border-t border-white/25 text-[7px]">
+                        <div className={`truncate mt-auto pt-0.5 border-t border-white/25 text-[7px] -mx-1 px-1 ${
+                          r.instructor_id === myUserId
+                            ? 'bg-navy-800 text-cream font-semibold'
+                            : 'opacity-80'
+                        }`}>
                           + {shortenName(r.instructor_name).initials}
                         </div>
                       )}

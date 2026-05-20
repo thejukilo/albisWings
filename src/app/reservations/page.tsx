@@ -51,6 +51,7 @@ export default async function ReservationsPage({
     .select('user_id')
     .eq('role', 'instructor');
   const instructorIds = (roleRows ?? []).map((r) => r.user_id);
+  const isInstructor = instructorIds.includes(user.id);
 
   const { data: instructorRows } = instructorIds.length === 0
     ? { data: [] }
@@ -103,6 +104,7 @@ export default async function ReservationsPage({
             selectedAircraft={selectedAircraft}
             schulungInstructorId={schulungInstructorId}
             myUserId={user.id}
+            isInstructor={isInstructor}
           />
           <div className="flex-1 min-w-0">
             <CalendarToolbar view={view} anchor={anchor} />

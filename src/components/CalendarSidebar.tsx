@@ -11,12 +11,14 @@ export function CalendarSidebar({
   selectedAircraft,
   schulungInstructorId,
   myUserId,
+  isInstructor,
 }: {
   aircraft: Aircraft[];
   instructors: Instructor[];
   selectedAircraft: Set<string>;
   schulungInstructorId: string | null;
   myUserId: string;
+  isInstructor: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -86,6 +88,12 @@ export function CalendarSidebar({
           <li><span className="inline-block w-3 h-2.5 bg-emerald-700 align-middle mr-2"></span>Privat (eigene)</li>
           <li><span className="inline-block w-3 h-2.5 bg-emerald-300 align-middle mr-2"></span>Privat (andere)</li>
           <li><span className="inline-block w-3 h-2.5 bg-red-700 align-middle mr-2"></span>Maintenance</li>
+          {isInstructor && (
+            <li>
+              <span className="inline-block w-3 h-2.5 bg-navy-800 align-middle mr-2"></span>
+              Sie als Fluglehrer
+            </li>
+          )}
           {schulungMode && (
             <li>
               <span

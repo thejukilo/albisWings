@@ -68,6 +68,7 @@ export function MonthView({
               </span>
               {visible.map((r) => {
                 const isMine = r.pilot_id === myUserId;
+                const isMyStudent = r.instructor_id === myUserId && r.pilot_id !== myUserId;
                 const isUnstaffed = r.pilot_id === null;
                 const isHighlighted = r.instructor_id != null && highlights.has(r.instructor_id);
                 const label = isUnstaffed
@@ -76,7 +77,10 @@ export function MonthView({
                 return (
                   <div
                     key={r.id}
-                    className={`text-[9px] px-1.5 py-0.5 rounded truncate ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-1 ring-signal-DEFAULT ring-inset' : ''}`}
+                    className={`text-[9px] px-1.5 py-0.5 rounded truncate ${eventClasses(r.purpose, isMine)} ${
+                      isHighlighted ? 'ring-1 ring-signal-DEFAULT ring-inset' : ''
+                    } ${isMyStudent ? 'border-l-2 border-navy-800' : ''}`}
+                    title={isMyStudent ? `${r.pilot_name} – Sie als Fluglehrer` : undefined}
                   >
                     <span className="font-mono">{r.registration}</span>
                     {' · '}
