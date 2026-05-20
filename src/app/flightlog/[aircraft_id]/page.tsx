@@ -45,8 +45,8 @@ export default async function AircraftFlightlogPage({
   const safePage = Math.min(page, totalPages);
   const offset = (safePage - 1) * PAGE_SIZE;
 
-  // Fetch this page of flights, most recent first. Embed the PIC pilot.
-  const { data: flights } = await supabase
+  // Fetch this page of flights, most recent first.
+  const { data: flights, error: flErr } = await supabase
     .from('flights')
     .select(`
       id, flight_date,
@@ -55,18 +55,40 @@ export default async function AircraftFlightlogPage({
       ftc_start, ftc_end, hobbs_start, hobbs_end,
       landings_day, landings_night, go_arounds,
       flight_category, mwst_befreit, passenger_count,
-      remarks,
-      pilots:flight_pilots(user_id, function, time_logged, user:users(display_name, last_name, first_name))
+      remarks
     `)
     .eq('aircraft_id', aircraft_id)
     .order('block_off', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
+  if (flErr) console.error('flights fetch error', flErr);
 
-  // Compute entry numbers for display (sequential from 1 at the oldest flight)
-  // The simplest: total - (offset + idx)
+  // Fetch pilot rows separately and build a map.
+  const flightIds = (flights ?? []).map(f => f.id);
+  const pilotByFlight = new Map<string, { user_id: string; function: string; first_name: string; last_name: string; display_name: string }[]>();
+  if (flightIds.length > 0) {
+    const { data: fpRows, error: fpErr } = await supabase
+      .from('flight_pilots')
+      .select('flight_id, user_id, function, user:users(display_name, first_name, last_name)')
+      .in('flight_id', flightIds);
+    if (fpErr) console.error('flight_pilots fetch error', fpErr);
+    for (const r of (fpRows ?? []) as any[]) {
+      const arr = pilotByFlight.get(r.flight_id) ?? [];
+      arr.push({
+        user_id: r.user_id,
+        function: r.function,
+        first_name: r.user?.first_name ?? '',
+        last_name:  r.user?.last_name  ?? '',
+        display_name: r.user?.display_name ?? '',
+      });
+      pilotByFlight.set(r.flight_id, arr);
+    }
+  }
+
+  // Compute entry numbers for display (descending so newest has the highest #)
   const rows = (flights ?? []).map((f: any, idx: number) => ({
     ...f,
     entry_no: total - offset - idx,
+    pilots: pilotByFlight.get(f.id) ?? [],
   }));
 
   // Pre-compute totals for current page bottom row
@@ -183,7 +205,7 @@ function FlightRow({ row: r, striped }: { row: any; striped: boolean }) {
   const bg = striped ? 'bg-neutral-50' : 'bg-white';
   // Get the PIC/DUAL pilot name (first non-instructor pilot row)
   const pilots = (r.pilots ?? []).filter((p: any) => p.function !== 'INSTR');
-  const pilot = pilots[0]?.user;
+  const pilot = pilots[0];
   const pilotName = pilot ? pilotInitials(pilot.first_name, pilot.last_name) : '—';
 
   const flightStart = formatHM(r.takeoff);
