@@ -88,6 +88,15 @@ export function CalendarSidebar({
           <li><span className="inline-block w-3 h-2.5 bg-emerald-700 align-middle mr-2"></span>Privat (eigene)</li>
           <li><span className="inline-block w-3 h-2.5 bg-emerald-300 align-middle mr-2"></span>Privat (andere)</li>
           <li><span className="inline-block w-3 h-2.5 bg-red-700 align-middle mr-2"></span>Maintenance</li>
+          <li>
+            <span
+              className="inline-block w-3 h-2.5 align-middle mr-2"
+              style={{
+                background: 'repeating-linear-gradient(-45deg, rgba(220,38,38,0.45) 0, rgba(220,38,38,0.45) 2px, rgba(220,38,38,0.15) 2px, rgba(220,38,38,0.15) 4px)'
+              }}
+            />
+            AOG (gesperrt)
+          </li>
           {isInstructor && (
             <li>
               <span className="inline-block w-3 h-2.5 bg-navy-800 align-middle mr-2"></span>

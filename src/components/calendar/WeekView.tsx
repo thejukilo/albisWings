@@ -10,6 +10,7 @@ export function WeekView({
   reservations,
   myUserId,
   schulungInstructorId,
+  aogAircraftIds,
 }: {
   anchor: Date;
   aircraft: Aircraft[];
@@ -18,6 +19,8 @@ export function WeekView({
   myUserId: string;
   /** When set, Schulung-Modus is on for this instructor. */
   schulungInstructorId: string | null;
+  /** Aircraft IDs currently AOG (any open Flight Relevant techlog entry). */
+  aogAircraftIds: Set<string>;
 }) {
   const wkStart = startOfWeek(anchor, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }).map((_, i) => addDays(wkStart, i));
@@ -122,12 +125,16 @@ export function WeekView({
               <div className="grid border-t border-neutral-100" style={{ gridTemplateColumns: `repeat(${N}, 1fr)` }}>
                 {visibleAircraft.map((a) => {
                   const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
+                  const isAog = aogAircraftIds.has(a.id);
                   return (
                     <div
                       key={a.id}
-                      className={`text-center py-0.5 text-[9px] font-mono text-navy-800 border-r border-neutral-100 last:border-r-0 ${tint.bg}`}
+                      className={`text-center py-1 text-[10px] font-mono border-r border-neutral-100 last:border-r-0 ${
+                        isAog ? 'bg-red-700 text-white font-bold' : `text-navy-800 ${tint.bg}`
+                      }`}
+                      title={isAog ? `${a.registration} ist AOG — keine Reservation möglich` : a.registration}
                     >
-                      {a.registration.replace('HB-', '')}
+                      {isAog ? <>⚠ AOG</> : a.registration.replace('HB-', '')}
                     </div>
                   );
                 })}
@@ -158,9 +165,19 @@ export function WeekView({
                   >
                     {visibleAircraft.map((a) => {
                       const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
+                      const isAog = aogAircraftIds.has(a.id);
                       const href = schulungMode
                         ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
                         : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
+                      if (isAog) {
+                        return (
+                          <div
+                            key={`cell-${a.id}-${dKey}-${h}`}
+                            className="aog-cell border-r border-r-white/40 last:border-r-0"
+                            title={`${a.registration} ist AOG — keine Reservation möglich`}
+                          />
+                        );
+                      }
                       return (
                         <Link
                           key={`cell-${a.id}-${dKey}-${h}`}
@@ -255,6 +272,16 @@ export function WeekView({
           inset: 0;
           background: rgba(220, 38, 38, 0.32);
           pointer-events: none;
+        }
+        .aog-cell {
+          background: repeating-linear-gradient(
+            -45deg,
+            rgba(220, 38, 38, 0.18) 0,
+            rgba(220, 38, 38, 0.18) 6px,
+            rgba(220, 38, 38, 0.08) 6px,
+            rgba(220, 38, 38, 0.08) 12px
+          );
+          cursor: not-allowed;
         }
       `}</style>
     </div>

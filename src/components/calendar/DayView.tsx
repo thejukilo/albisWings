@@ -8,12 +8,14 @@ export function DayView({
   reservations,
   myUserId,
   schulungInstructorId,
+  aogAircraftIds,
 }: {
   date: Date;
   aircraft: Aircraft[];
   reservations: ReservationRow[];
   myUserId: string;
   schulungInstructorId: string | null;
+  aogAircraftIds: Set<string>;
 }) {
   const byAircraft = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
@@ -68,10 +70,20 @@ export function DayView({
         <div className="bg-neutral-50 border-b border-r border-neutral-200" />
         {aircraft.map((a, idx) => {
           const tint = aircraftTint(idx);
+          const isAog = aogAircraftIds.has(a.id);
           return (
-            <div key={a.id} className={`${tint.bg} border-b border-r border-neutral-200 px-3 py-2 text-center`}>
-              <div className="inline-block bg-navy-800 text-cream font-mono text-xs px-2 py-0.5 rounded-sm">{a.registration}</div>
-              <div className="text-[10px] text-neutral-500 mt-1">{a.manufacturer} {a.model}</div>
+            <div
+              key={a.id}
+              className={`border-b border-r border-neutral-200 px-3 py-2 text-center ${isAog ? 'bg-red-700' : tint.bg}`}
+            >
+              <div className={`inline-block font-mono text-xs px-2 py-0.5 rounded-sm ${
+                isAog ? 'bg-red-900 text-white' : 'bg-navy-800 text-cream'
+              }`}>
+                {isAog && <span className="mr-1">⚠</span>}{a.registration}
+              </div>
+              <div className={`text-[10px] mt-1 ${isAog ? 'text-white font-semibold uppercase' : 'text-neutral-500'}`}>
+                {isAog ? 'AOG — keine Solo-Reservation' : `${a.manufacturer} ${a.model}`}
+              </div>
             </div>
           );
         })}
@@ -89,9 +101,20 @@ export function DayView({
               </div>
               {aircraft.map((a, idx) => {
                 const tint = aircraftTint(idx);
+                const isAog = aogAircraftIds.has(a.id);
                 const href = schulungMode
                   ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
                   : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
+                if (isAog) {
+                  return (
+                    <div
+                      key={`cell-${a.id}-${h}`}
+                      className="aog-cell border-r border-b border-neutral-100"
+                      style={{ height: HOUR_PX }}
+                      title={`${a.registration} ist AOG`}
+                    />
+                  );
+                }
                 return (
                   <Link
                     key={`cell-${a.id}-${h}`}
@@ -174,6 +197,16 @@ export function DayView({
           inset: 0;
           background: rgba(220, 38, 38, 0.32);
           pointer-events: none;
+        }
+        .aog-cell {
+          background: repeating-linear-gradient(
+            -45deg,
+            rgba(220, 38, 38, 0.18) 0,
+            rgba(220, 38, 38, 0.18) 6px,
+            rgba(220, 38, 38, 0.08) 6px,
+            rgba(220, 38, 38, 0.08) 12px
+          );
+          cursor: not-allowed;
         }
       `}</style>
     </div>
