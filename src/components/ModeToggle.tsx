@@ -2,46 +2,60 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTransition } from 'react';
+import type { Instructor } from '@/lib/types';
 
-export type CalendarMode = 'flugzeug' | 'fluglehrer';
-
-export function ModeToggle({ mode }: { mode: CalendarMode }) {
+export function SchulungModeToggle({
+  instructors,
+  selectedInstructorId,
+}: {
+  instructors: Instructor[];
+  selectedInstructorId: string | null;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
   const [, startTransition] = useTransition();
 
-  function setMode(next: CalendarMode) {
-    const params = new URLSearchParams(sp.toString());
-    if (next === 'flugzeug') params.delete('mode'); else params.set('mode', next);
-    // Clear the filter params when switching modes since they have different meanings
-    params.delete('ac');
-    params.delete('fi');
-    startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
+  const isOn = selectedInstructorId !== null;
+
+  function toggleMode() {
+    const next = new URLSearchParams(sp.toString());
+    if (isOn) {
+      next.delete('fi');
+    } else if (instructors.length > 0) {
+      next.set('fi', instructors[0].id);
+    }
+    startTransition(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
+  }
+
+  function setInstructor(id: string) {
+    const next = new URLSearchParams(sp.toString());
+    next.set('fi', id);
+    startTransition(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
   }
 
   return (
-    <div className="inline-flex border border-navy-800 rounded-sm overflow-hidden text-xs">
-      <button
-        onClick={() => setMode('flugzeug')}
-        className={`px-3 py-1.5 transition-colors ${
-          mode === 'flugzeug'
-            ? 'bg-navy-800 text-cream font-medium'
-            : 'bg-white text-navy-800 hover:bg-cream-50'
-        }`}
-      >
-        Flugzeug-Verfügbarkeit
-      </button>
-      <button
-        onClick={() => setMode('fluglehrer')}
-        className={`px-3 py-1.5 border-l border-navy-800 transition-colors ${
-          mode === 'fluglehrer'
-            ? 'bg-navy-800 text-cream font-medium'
-            : 'bg-white text-navy-800 hover:bg-cream-50'
-        }`}
-      >
-        Fluglehrer-Verfügbarkeit
-      </button>
+    <div className="inline-flex items-center gap-2">
+      <label className="flex items-center gap-2 px-3 py-1.5 border border-navy-800 rounded-sm cursor-pointer text-xs select-none transition-colors hover:bg-cream-50">
+        <input
+          type="checkbox"
+          checked={isOn}
+          onChange={toggleMode}
+          className="accent-navy-800"
+        />
+        <span className="text-navy-800 font-medium">Schulung-Modus</span>
+      </label>
+      {isOn && (
+        <select
+          value={selectedInstructorId ?? ''}
+          onChange={(e) => setInstructor(e.target.value)}
+          className="text-xs px-2 py-1.5 border border-navy-800 rounded-sm bg-white text-navy-800"
+        >
+          {instructors.map((i) => (
+            <option key={i.id} value={i.id}>{i.display_name}</option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

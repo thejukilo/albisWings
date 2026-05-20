@@ -3,11 +3,11 @@ import { redirect } from 'next/navigation';
 import { TopNav } from '@/components/TopNav';
 import { CalendarSidebar } from '@/components/CalendarSidebar';
 import { CalendarToolbar } from '@/components/CalendarToolbar';
-import { ModeToggle, type CalendarMode } from '@/components/ModeToggle';
+import { SchulungModeToggle } from '@/components/ModeToggle';
 import { DayView } from '@/components/calendar/DayView';
 import { WeekView } from '@/components/calendar/WeekView';
 import { MonthView } from '@/components/calendar/MonthView';
-import { InstructorView, type AvailabilityRow } from '@/components/calendar/InstructorView';
+import type { AvailabilityRow } from '@/components/calendar/AvailabilityTypes';
 import { getRangeForView, type ViewMode } from '@/lib/calendar';
 import type { Aircraft, Instructor, ReservationRow } from '@/lib/types';
 import { parse, isValid } from 'date-fns';
@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export default async function ReservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; date?: string; ac?: string; fi?: string; mode?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; ac?: string; fi?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,7 +31,6 @@ export default async function ReservationsPage({
 
   const sp = await searchParams;
 
-  const mode: CalendarMode = sp.mode === 'fluglehrer' ? 'fluglehrer' : 'flugzeug';
   const view: ViewMode = sp.view === 'day' || sp.view === 'month' ? sp.view : 'week';
   let anchor = new Date();
   if (sp.date) {
@@ -41,7 +40,6 @@ export default async function ReservationsPage({
 
   const { from, to } = getRangeForView(view, anchor);
 
-  // Always load aircraft + instructors (sidebar needs them in both modes)
   const { data: aircraftRows } = await supabase
     .from('aircraft')
     .select('id, registration, manufacturer, model, aircraft_class, sort_order')
@@ -71,9 +69,8 @@ export default async function ReservationsPage({
   }));
 
   const selectedAircraft = new Set<string>(sp.ac ? sp.ac.split(',') : aircraft.map(a => a.id));
-  const selectedInstructorId = sp.fi || null;
+  const schulungInstructorId = sp.fi || null;
 
-  // Fetch reservations for the date range (used by both modes)
   const { data: rRows } = await supabase
     .from('v_reservation_grid')
     .select('*')
@@ -82,19 +79,15 @@ export default async function ReservationsPage({
     .order('starts_at', { ascending: true });
   const reservations: ReservationRow[] = (rRows ?? []) as ReservationRow[];
 
-  // Fetch instructor availability only in Fluglehrer mode
+  // Load availability only when Schulung-Modus is on
   let availability: AvailabilityRow[] = [];
-  let selectedInstructor: Instructor | null = null;
-  if (mode === 'fluglehrer' && selectedInstructorId) {
-    selectedInstructor = instructors.find(i => i.id === selectedInstructorId) ?? null;
+  if (schulungInstructorId) {
     const { data: avRows } = await supabase
       .from('instructor_availability')
       .select('id, instructor_id, period, available, note')
-      .eq('instructor_id', selectedInstructorId)
-      .order('period', { ascending: true });
+      .eq('instructor_id', schulungInstructorId);
     availability = (avRows ?? []).map((a: any) => {
       const periodStr: string = a.period as string;
-      // Postgres serializes tstzrange as '["2026-05-18 17:00:00+02","2026-05-18 20:00:00+02")'
       const match = periodStr.match(/^[\[\(](.+?),(.+?)[\]\)]$/);
       const startStr = match?.[1].trim().replace(/^"|"$/g, '') ?? '';
       const endStr   = match?.[2].trim().replace(/^"|"$/g, '') ?? '';
@@ -119,40 +112,27 @@ export default async function ReservationsPage({
           <div>
             <h1 className="text-3xl font-semibold text-navy-800">Reservationen</h1>
             <p className="text-feather">
-              {mode === 'flugzeug'
-                ? 'Wähle ein Flugzeug & klicke einen freien Slot.'
-                : 'Wähle einen Lehrer & einen verfügbaren Slot für eine Schulung.'}
+              {schulungInstructorId
+                ? 'Grün markierte Slots sind buchbar (Lehrer + Flugzeug verfügbar).'
+                : 'Klicke einen freien Slot um zu reservieren.'}
             </p>
           </div>
-          <ModeToggle mode={mode} />
+          <SchulungModeToggle instructors={instructors} selectedInstructorId={schulungInstructorId} />
         </div>
 
         <div className="flex border border-neutral-200 rounded-sm overflow-hidden bg-white">
           <CalendarSidebar
-            mode={mode}
             aircraft={aircraft}
             instructors={instructors}
             selectedAircraft={selectedAircraft}
-            selectedInstructorId={selectedInstructorId}
+            schulungInstructorId={schulungInstructorId}
             myUserId={user.id}
           />
           <div className="flex-1 min-w-0">
             <CalendarToolbar view={view} anchor={anchor} />
-            {mode === 'flugzeug' ? (
-              <>
-                {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} highlightedInstructors={new Set()} />}
-                {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} highlightedInstructors={new Set()} />}
-                {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} highlightedInstructors={new Set()} />}
-              </>
-            ) : (
-              <InstructorView
-                anchor={anchor}
-                instructor={selectedInstructor}
-                reservations={reservations}
-                availability={availability}
-                myUserId={user.id}
-              />
-            )}
+            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} instructorAvailability={availability} />}
+            {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} instructorAvailability={availability} />}
+            {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
           </div>
         </div>
       </div>

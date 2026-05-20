@@ -12,8 +12,9 @@ export function MonthView({
   anchor: Date;
   reservations: ReservationRow[];
   myUserId: string;
-  highlightedInstructors: Set<string>;
+  highlightedInstructors?: Set<string>;
 }) {
+  const highlights = highlightedInstructors ?? new Set<string>();
   const moStart = startOfMonth(anchor);
   const gridStart = startOfWeek(moStart, { weekStartsOn: 1 });
   const cells = Array.from({ length: 42 }).map((_, i) => addDays(gridStart, i));
@@ -68,7 +69,7 @@ export function MonthView({
               {visible.map((r) => {
                 const isMine = r.pilot_id === myUserId;
                 const isUnstaffed = r.pilot_id === null;
-                const isHighlighted = r.instructor_id != null && highlightedInstructors.has(r.instructor_id);
+                const isHighlighted = r.instructor_id != null && highlights.has(r.instructor_id);
                 const label = isUnstaffed
                   ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby')
                   : isMine ? `${r.pilot_name} (du)` : r.pilot_name;

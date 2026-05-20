@@ -1,6 +1,7 @@
 import { addDays, startOfWeek, isSameDay } from 'date-fns';
 import Link from 'next/link';
 import type { Aircraft, ReservationRow } from '@/lib/types';
+import type { AvailabilityRow } from '@/components/calendar/AvailabilityTypes';
 import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, DOW_LABELS, eventClasses, formatLocal, getLocalParts, aircraftTint, shortenName } from '@/lib/calendar';
 
 export function WeekView({
@@ -9,14 +10,18 @@ export function WeekView({
   selectedAircraftIds,
   reservations,
   myUserId,
-  highlightedInstructors,
+  schulungInstructorId,
+  instructorAvailability,
 }: {
   anchor: Date;
   aircraft: Aircraft[];
   selectedAircraftIds: Set<string>;
   reservations: ReservationRow[];
   myUserId: string;
-  highlightedInstructors: Set<string>;
+  /** When set, Schulung-Modus is on for this instructor. */
+  schulungInstructorId: string | null;
+  /** Availability windows for that instructor (already pre-fetched). */
+  instructorAvailability: AvailabilityRow[];
 }) {
   const wkStart = startOfWeek(anchor, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }).map((_, i) => addDays(wkStart, i));
@@ -25,10 +30,50 @@ export function WeekView({
   const visibleAircraft = aircraft.filter(a => selectedAircraftIds.size === 0 || selectedAircraftIds.has(a.id));
   const acIndexById = new Map(aircraft.map((a, i) => [a.id, i]));
 
-  // Bucket events by day (club-local). Multi-day events repeat on each day they touch.
+  // Pre-compute the instructor's available hour-windows per day key,
+  // and their already-booked windows.
+  const instructorAvailByDay = new Map<string, { start: number; end: number }[]>();
+  if (schulungInstructorId) {
+    for (const a of instructorAvailability) {
+      if (!a.available) continue;
+      const startKey = formatLocal(a.starts_at, 'yyyy-MM-dd');
+      const endKey   = formatLocal(a.ends_at,   'yyyy-MM-dd');
+      for (const d of days) {
+        const k = formatLocal(d, 'yyyy-MM-dd');
+        if (k < startKey || k > endKey) continue;
+        const startParts = getLocalParts(a.starts_at);
+        const endParts   = getLocalParts(a.ends_at);
+        const startH = startKey === k ? startParts.hour + startParts.minute / 60 : DAY_START_HOUR;
+        const endH   = endKey   === k ? endParts.hour   + endParts.minute   / 60 : DAY_END_HOUR;
+        if (!instructorAvailByDay.has(k)) instructorAvailByDay.set(k, []);
+        instructorAvailByDay.get(k)!.push({ start: startH, end: endH });
+      }
+    }
+  }
+
+  const instructorBookedByDay = new Map<string, { start: number; end: number; remark: string }[]>();
+  if (schulungInstructorId) {
+    for (const r of reservations) {
+      if (r.instructor_id !== schulungInstructorId) continue;
+      const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
+      const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
+      for (const d of days) {
+        const k = formatLocal(d, 'yyyy-MM-dd');
+        if (k < startKey || k > endKey) continue;
+        const startParts = getLocalParts(r.starts_at);
+        const endParts   = getLocalParts(r.ends_at);
+        const startH = startKey === k ? startParts.hour + startParts.minute / 60 : DAY_START_HOUR;
+        const endH   = endKey   === k ? endParts.hour   + endParts.minute   / 60 : DAY_END_HOUR;
+        if (!instructorBookedByDay.has(k)) instructorBookedByDay.set(k, []);
+        instructorBookedByDay.get(k)!.push({ start: startH, end: endH, remark: `${r.registration} · ${r.pilot_name}` });
+      }
+    }
+  }
+
+  // Reservations bucketed per day (all aircraft, for the foreground blocks)
   const byDay = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
-    if (!selectedAircraftIds.has(r.aircraft_id) && selectedAircraftIds.size !== 0) continue;
+    if (selectedAircraftIds.size !== 0 && !selectedAircraftIds.has(r.aircraft_id)) continue;
     const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
     const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
     if (startKey === endKey) {
@@ -45,6 +90,32 @@ export function WeekView({
     }
   }
 
+  // Aircraft-already-booked lookup for a given (aircraft, day, hour) -> bool
+  function aircraftBookedAt(aircraftId: string, dayKey: string, hour: number): boolean {
+    const evs = byDay.get(dayKey) ?? [];
+    for (const r of evs) {
+      if (r.aircraft_id !== aircraftId) continue;
+      const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
+      const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
+      const startParts = getLocalParts(r.starts_at);
+      const endParts   = getLocalParts(r.ends_at);
+      const startH = startKey === dayKey ? startParts.hour + startParts.minute / 60 : DAY_START_HOUR;
+      const endH   = endKey   === dayKey ? endParts.hour   + endParts.minute   / 60 : DAY_END_HOUR;
+      if (hour >= startH && hour < endH) return true;
+    }
+    return false;
+  }
+
+  function instructorAvailableAt(dayKey: string, hour: number): boolean {
+    const windows = instructorAvailByDay.get(dayKey) ?? [];
+    return windows.some(w => hour >= w.start && hour < w.end);
+  }
+
+  function instructorBookedAt(dayKey: string, hour: number): boolean {
+    const windows = instructorBookedByDay.get(dayKey) ?? [];
+    return windows.some(w => hour >= w.start && hour < w.end);
+  }
+
   const HOUR_PX = 36;
   const N = visibleAircraft.length;
   if (N === 0) {
@@ -55,13 +126,15 @@ export function WeekView({
     );
   }
 
+  const schulungMode = schulungInstructorId !== null;
+
   return (
     <div className="overflow-x-auto">
       <div
         className="grid border-t border-neutral-200"
         style={{ gridTemplateColumns: `48px repeat(7, minmax(${N * 32}px, 1fr))` }}
       >
-        {/* Header: corner + 7 day headers each with sub-columns */}
+        {/* Header */}
         <div className="bg-neutral-50 border-b border-r border-neutral-200" />
         {days.map((d, i) => {
           const isToday = isSameDay(d, today);
@@ -76,10 +149,7 @@ export function WeekView({
                   {formatLocal(d, 'd')}
                 </div>
               </div>
-              <div
-                className="grid border-t border-neutral-100"
-                style={{ gridTemplateColumns: `repeat(${N}, 1fr)` }}
-              >
+              <div className="grid border-t border-neutral-100" style={{ gridTemplateColumns: `repeat(${N}, 1fr)` }}>
                 {visibleAircraft.map((a) => {
                   const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
                   return (
@@ -107,36 +177,47 @@ export function WeekView({
               >
                 {hour.toString().padStart(2, '0')}:00
               </div>
-              {days.map((d) => (
-                <div
-                  key={`day-${d.toISOString()}-${h}`}
-                  className="border-r-[1.5px] border-r-neutral-300 border-b border-b-neutral-100 grid"
-                  style={{ gridTemplateColumns: `repeat(${N}, 1fr)`, height: HOUR_PX }}
-                >
-                  {visibleAircraft.map((a) => {
-                    const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
-                    return (
-                      <Link
-                        key={`cell-${a.id}-${d.toISOString()}-${h}`}
-                        href={`/reservations/new?aircraft=${a.id}&date=${formatLocal(d, 'yyyy-MM-dd')}&hour=${hour}`}
-                        className={`${tint.bg} border-r border-r-white/40 last:border-r-0 hover:brightness-95 transition-all`}
-                        aria-label={`Neue Reservation ${a.registration} ${formatLocal(d, 'dd.MM.')} ${hour}:00`}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
+              {days.map((d) => {
+                const dKey = formatLocal(d, 'yyyy-MM-dd');
+                const instructorAvail = !schulungMode || instructorAvailableAt(dKey, hour);
+                const instructorBusy  = schulungMode && instructorBookedAt(dKey, hour);
+                return (
+                  <div
+                    key={`day-${dKey}-${h}`}
+                    className={`border-r-[1.5px] border-r-neutral-300 border-b border-b-neutral-100 grid relative ${
+                      schulungMode && !instructorAvail ? 'unavail-hatch' : ''
+                    }`}
+                    style={{ gridTemplateColumns: `repeat(${N}, 1fr)`, height: HOUR_PX }}
+                  >
+                    {visibleAircraft.map((a) => {
+                      const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
+                      const acBusy = aircraftBookedAt(a.id, dKey, hour);
+                      const bookable = schulungMode && instructorAvail && !instructorBusy && !acBusy;
+                      const href = bookable
+                        ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
+                        : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
+                      return (
+                        <Link
+                          key={`cell-${a.id}-${dKey}-${h}`}
+                          href={href}
+                          className={`${tint.bg} border-r border-r-white/40 last:border-r-0 hover:brightness-95 transition-all relative ${
+                            bookable ? 'schulung-bookable' : ''
+                          }`}
+                          aria-label={`${a.registration} ${formatLocal(d, 'dd.MM.')} ${hour}:00`}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
       </div>
 
-      {/* Overlay events absolutely-positioned per day, per aircraft sub-column */}
+      {/* Overlay: existing reservation blocks + instructor "busy elsewhere" markers */}
       <div className="relative" style={{ marginTop: -(HOURS_VISIBLE * HOUR_PX), pointerEvents: 'none' }}>
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: `48px repeat(7, minmax(${N * 32}px, 1fr))` }}
-        >
+        <div className="grid" style={{ gridTemplateColumns: `48px repeat(7, minmax(${N * 32}px, 1fr))` }}>
           <div />
           {days.map((d) => {
             const dKey = formatLocal(d, 'yyyy-MM-dd');
@@ -145,8 +226,7 @@ export function WeekView({
               <div key={dKey} className="relative" style={{ height: HOURS_VISIBLE * HOUR_PX }}>
                 {evs.map((r) => {
                   const acIdx = visibleAircraft.findIndex(a => a.id === r.aircraft_id);
-                  if (acIdx < 0) return null; // aircraft hidden -- skip
-
+                  if (acIdx < 0) return null;
                   const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
                   const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
                   const startParts = getLocalParts(r.starts_at);
@@ -161,9 +241,6 @@ export function WeekView({
 
                   const isMine = r.pilot_id === myUserId;
                   const isUnstaffed = r.pilot_id === null;
-                  const isHighlighted = r.instructor_id != null && highlightedInstructors.has(r.instructor_id);
-
-                  // Position within this day's row: each sub-column is 1/N
                   const leftPct  = (acIdx / N) * 100;
                   const widthPct = (1 / N) * 100;
 
@@ -171,10 +248,9 @@ export function WeekView({
                     <Link
                       key={r.id}
                       href={`/reservations/${r.id}`}
-                      className={`absolute rounded-sm px-1 py-0.5 text-[8px] leading-tight overflow-hidden flex flex-col ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-2 ring-signal-DEFAULT ring-inset' : ''}`}
+                      className={`absolute rounded-sm px-1 py-0.5 text-[8px] leading-tight overflow-hidden flex flex-col ${eventClasses(r.purpose, isMine)}`}
                       style={{
-                        top: topPx,
-                        height: heightPx,
+                        top: topPx, height: heightPx,
                         left: `calc(${leftPct}% + 1px)`,
                         width: `calc(${widthPct}% - 2px)`,
                         pointerEvents: 'auto',
@@ -199,17 +275,36 @@ export function WeekView({
           })}
         </div>
       </div>
+
+      <style>{`
+        .unavail-hatch {
+          background-image: repeating-linear-gradient(135deg, rgba(150,140,110,0.10) 0, rgba(150,140,110,0.10) 4px, rgba(150,140,110,0.20) 4px, rgba(150,140,110,0.20) 5px);
+        }
+        .schulung-bookable {
+          box-shadow: inset 0 0 0 2px #3B6D11;
+        }
+        .schulung-bookable::after {
+          content: '✓';
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 14px;
+          color: #3B6D11;
+          font-weight: 700;
+          opacity: 0.6;
+          pointer-events: none;
+        }
+        .schulung-bookable:hover { filter: brightness(0.92); }
+      `}</style>
     </div>
   );
 }
 
-/** First name only — fits in narrow columns. */
 function pilotShort(displayName: string | null): string {
   if (!displayName) return '';
   return displayName.split(/\s+/)[0];
 }
 
-/** Rich tooltip for hover. */
 function buildTooltip(r: ReservationRow, isMine: boolean, isUnstaffed: boolean): string {
   const time = `${formatLocal(r.starts_at, 'HH:mm')}–${formatLocal(r.ends_at, 'HH:mm')}`;
   const date = formatLocal(r.starts_at, 'dd.MM.');

@@ -1,19 +1,22 @@
 import Link from 'next/link';
 import type { Aircraft, ReservationRow } from '@/lib/types';
-import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight, aircraftTint, shortenName } from '@/lib/calendar';
+import type { AvailabilityRow } from '@/components/calendar/AvailabilityTypes';
+import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight, getLocalParts, aircraftTint, shortenName } from '@/lib/calendar';
 
 export function DayView({
   date,
   aircraft,
   reservations,
   myUserId,
-  highlightedInstructors,
+  schulungInstructorId,
+  instructorAvailability,
 }: {
   date: Date;
   aircraft: Aircraft[];
   reservations: ReservationRow[];
   myUserId: string;
-  highlightedInstructors: Set<string>;
+  schulungInstructorId: string | null;
+  instructorAvailability: AvailabilityRow[];
 }) {
   const byAircraft = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
@@ -21,8 +24,58 @@ export function DayView({
     byAircraft.get(r.aircraft_id)!.push(r);
   }
 
+  const dKey = formatLocal(date, 'yyyy-MM-dd');
+  const schulungMode = schulungInstructorId !== null;
+
+  // Pre-compute instructor's avail/booked windows for this day
+  const instructorAvail: { start: number; end: number }[] = [];
+  const instructorBooked: { start: number; end: number }[] = [];
+  if (schulungMode) {
+    for (const a of instructorAvailability) {
+      if (!a.available) continue;
+      const startKey = formatLocal(a.starts_at, 'yyyy-MM-dd');
+      const endKey   = formatLocal(a.ends_at,   'yyyy-MM-dd');
+      if (dKey < startKey || dKey > endKey) continue;
+      const sp = getLocalParts(a.starts_at);
+      const ep = getLocalParts(a.ends_at);
+      const startH = startKey === dKey ? sp.hour + sp.minute / 60 : DAY_START_HOUR;
+      const endH   = endKey   === dKey ? ep.hour + ep.minute / 60 : DAY_END_HOUR;
+      instructorAvail.push({ start: startH, end: endH });
+    }
+    for (const r of reservations) {
+      if (r.instructor_id !== schulungInstructorId) continue;
+      const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
+      const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
+      if (dKey < startKey || dKey > endKey) continue;
+      const sp = getLocalParts(r.starts_at);
+      const ep = getLocalParts(r.ends_at);
+      const startH = startKey === dKey ? sp.hour + sp.minute / 60 : DAY_START_HOUR;
+      const endH   = endKey   === dKey ? ep.hour + ep.minute / 60 : DAY_END_HOUR;
+      instructorBooked.push({ start: startH, end: endH });
+    }
+  }
+
+  function instructorAvailableAt(hour: number): boolean {
+    return instructorAvail.some(w => hour >= w.start && hour < w.end);
+  }
+  function instructorBookedAt(hour: number): boolean {
+    return instructorBooked.some(w => hour >= w.start && hour < w.end);
+  }
+  function aircraftBookedAt(aircraftId: string, hour: number): boolean {
+    const evs = byAircraft.get(aircraftId) ?? [];
+    for (const r of evs) {
+      const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
+      const endKey   = formatLocal(r.ends_at,   'yyyy-MM-dd');
+      const sp = getLocalParts(r.starts_at);
+      const ep = getLocalParts(r.ends_at);
+      const startH = startKey === dKey ? sp.hour + sp.minute / 60 : DAY_START_HOUR;
+      const endH   = endKey   === dKey ? ep.hour + ep.minute / 60 : DAY_END_HOUR;
+      if (hour >= startH && hour < endH) return true;
+    }
+    return false;
+  }
+
   const HOUR_PX = 48;
-  const dateKey = formatLocal(date, 'yyyy-MM-dd');
 
   return (
     <div className="overflow-x-auto">
@@ -43,6 +96,8 @@ export function DayView({
 
         {Array.from({ length: HOURS_VISIBLE }).map((_, h) => {
           const hour = DAY_START_HOUR + h;
+          const instrAvail = !schulungMode || instructorAvailableAt(hour);
+          const instrBusy  = schulungMode && instructorBookedAt(hour);
           return (
             <div key={`row-${h}`} className="contents">
               <div
@@ -53,11 +108,19 @@ export function DayView({
               </div>
               {aircraft.map((a, idx) => {
                 const tint = aircraftTint(idx);
+                const acBusy = aircraftBookedAt(a.id, hour);
+                const bookable = schulungMode && instrAvail && !instrBusy && !acBusy;
+                const showHatch = schulungMode && !instrAvail;
+                const href = bookable
+                  ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
+                  : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
                 return (
                   <Link
                     key={`cell-${a.id}-${h}`}
-                    href={`/reservations/new?aircraft=${a.id}&date=${dateKey}&hour=${hour}`}
-                    className={`${tint.bg} border-r border-b border-neutral-100 hover:brightness-95 transition-all`}
+                    href={href}
+                    className={`${tint.bg} border-r border-b border-neutral-100 hover:brightness-95 transition-all relative ${
+                      showHatch ? 'unavail-hatch' : ''
+                    } ${bookable ? 'schulung-bookable' : ''}`}
                     style={{ height: HOUR_PX }}
                     aria-label={`Neue Reservation ${a.registration} ${hour}:00`}
                   />
@@ -88,12 +151,11 @@ export function DayView({
                   const heightPx = (clippedEnd - clippedStart) * HOUR_PX;
                   const isMine = r.pilot_id === myUserId;
                   const isUnstaffed = r.pilot_id === null;
-                  const isHighlighted = r.instructor_id != null && highlightedInstructors.has(r.instructor_id);
                   return (
                     <Link
                       key={r.id}
                       href={`/reservations/${r.id}`}
-                      className={`absolute left-0.5 right-0.5 rounded px-2 py-1 text-[10px] leading-tight overflow-hidden flex flex-col ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-2 ring-signal-DEFAULT ring-inset' : ''}`}
+                      className={`absolute left-0.5 right-0.5 rounded px-2 py-1 text-[10px] leading-tight overflow-hidden flex flex-col ${eventClasses(r.purpose, isMine)}`}
                       style={{ top: topPx, height: heightPx, pointerEvents: 'auto' }}
                       title={buildTooltipDay(r, isMine, isUnstaffed)}
                     >
@@ -119,6 +181,27 @@ export function DayView({
           })}
         </div>
       </div>
+
+      <style>{`
+        .unavail-hatch {
+          background-image: repeating-linear-gradient(135deg, rgba(150,140,110,0.10) 0, rgba(150,140,110,0.10) 4px, rgba(150,140,110,0.22) 4px, rgba(150,140,110,0.22) 5px) !important;
+        }
+        .schulung-bookable {
+          box-shadow: inset 0 0 0 2px #3B6D11;
+        }
+        .schulung-bookable::after {
+          content: '✓';
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 18px;
+          color: #3B6D11;
+          font-weight: 700;
+          opacity: 0.5;
+          pointer-events: none;
+        }
+        .schulung-bookable:hover { filter: brightness(0.92); }
+      `}</style>
     </div>
   );
 }
