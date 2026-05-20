@@ -82,6 +82,7 @@ export default async function NewReservationPage({
           aircraft={aircraft}
           instructors={instructors}
           canBlockAircraft={canBlockAircraft}
+          pilotName={me?.display_name ?? user.email ?? 'Member'}
           defaults={{
             aircraftId: sp.aircraft,
             startsAt,

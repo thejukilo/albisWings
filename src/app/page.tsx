@@ -31,20 +31,10 @@ export default async function CheckInPage() {
     .eq('id', user.id)
     .maybeSingle();
 
-  // Currency: rolling 90-day SEP landings as PIC/PICUS/SOLO
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
-  const { data: myLandings } = await supabase
-    .from('flight_pilots')
-    .select('landings_logged, function, flight:flights!inner(flight_date, aircraft:aircraft!inner(aircraft_class))')
-    .eq('user_id', user.id)
-    .in('function', ['PIC', 'PICUS', 'SOLO'])
-    .gte('flight.flight_date', ninetyDaysAgo);
-
-  const sepLandings90d = (myLandings ?? [])
-    // @ts-expect-error nested filter
-    .filter((row) => row.flight?.aircraft?.aircraft_class === 'SEP')
-    .reduce((sum, row) => sum + (row.landings_logged ?? 0), 0);
-
+  // Currency: rolling 90-day SEP landings (delegates to the DB function which
+  // counts PIC/PICUS/SOLO/DUAL landings on SEP aircraft).
+  const { data: sepLandingsRpc } = await supabase.rpc('sep_landings_90d', { p_user_id: user.id });
+  const sepLandings90d = (sepLandingsRpc ?? 0) as number;
   const currencyWarning = sepLandings90d < 3;
 
   const { data: opsNews } = await supabase

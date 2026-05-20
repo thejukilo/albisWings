@@ -24,6 +24,7 @@ export function BookingForm({
   instructors,
   canBlockAircraft = false,
   defaults,
+  pilotName,
 }: {
   aircraft: Aircraft[];
   instructors: Instructor[];
@@ -35,6 +36,7 @@ export function BookingForm({
     purpose?: string;
     instructorId?: string;
   };
+  pilotName: string;
 }) {
   const PURPOSES = canBlockAircraft ? PURPOSES_STAFF : PURPOSES_PILOT;
   const router = useRouter();
@@ -137,7 +139,7 @@ export function BookingForm({
           <>
             <FieldLabel required>Pilot</FieldLabel>
             <input
-              value="Van de Velde Lode"
+              value={pilotName}
               readOnly
               className={`${inputClass} bg-neutral-50 text-neutral-700`}
             />
