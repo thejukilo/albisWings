@@ -5,7 +5,7 @@ import { de } from 'date-fns/locale';
 export const CLUB_TZ = 'Europe/Zurich';
 
 /** Format an instant in club-local time. Replaces date-fns format() for any timestamptz-derived data. */
-export function formatLocal(d: Date | string, pattern: 'HH:mm' | 'yyyy-MM-dd' | 'd' | 'dd.MM.' | 'dd.MM.yyyy' | 'HH:mm dd.MM.'): string {
+export function formatLocal(d: Date | string, pattern: 'HH:mm' | 'yyyy-MM-dd' | 'd' | 'dd.MM.' | 'dd.MM.yyyy' | 'HH:mm dd.MM.' | 'EEEE, dd.MM.yyyy'): string {
   const date = typeof d === 'string' ? new Date(d) : d;
   // Build via Intl parts to get a stable answer in CLUB_TZ.
   const f = new Intl.DateTimeFormat('de-CH', {
@@ -23,6 +23,10 @@ export function formatLocal(d: Date | string, pattern: 'HH:mm' | 'yyyy-MM-dd' | 
     case 'dd.MM.':      return `${day}.${month}.`;
     case 'dd.MM.yyyy':  return `${day}.${month}.${year}`;
     case 'HH:mm dd.MM.': return `${hour}:${minute} ${day}.${month}.`;
+    case 'EEEE, dd.MM.yyyy': {
+      const wf = new Intl.DateTimeFormat('de-CH', { timeZone: CLUB_TZ, weekday: 'long' });
+      return `${wf.format(date)}, ${day}.${month}.${year}`;
+    }
   }
 }
 
