@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { TopNav } from '@/components/TopNav';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -79,6 +80,23 @@ export default async function CheckInPage() {
     .order('starts_at', { ascending: true })
     .limit(5);
 
+  // Check if current user is an instructor; if so, also fetch upcoming
+  // Schulung flights where they're the assigned instructor.
+  const { data: myRoles } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+  const isInstructor = (myRoles ?? []).some(r => r.role === 'instructor');
+
+  const { data: myInstructorFlights } = isInstructor ? await supabase
+    .from('v_reservation_grid')
+    .select('id, registration, starts_at, ends_at, purpose, remarks, pilot_name')
+    .eq('instructor_id', user.id)
+    .neq('pilot_id', user.id)   // don't show their own private flights here
+    .gte('starts_at', new Date().toISOString())
+    .order('starts_at', { ascending: true })
+    .limit(8) : { data: null };
+
   const { data: openDefects } = await supabase
     .from('v_open_techlog')
     .select('aircraft_id, registration, grounding_defects, open_defects')
@@ -133,36 +151,60 @@ export default async function CheckInPage() {
           <QuicklinksBlock />
         </div>
 
+        {/* Upcoming student flights (instructors only) */}
+        {isInstructor && myInstructorFlights && myInstructorFlights.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-xl text-feather mb-3">Bevorstehende Flüge mit Schülern</h2>
+            <div className="border border-neutral-200 overflow-hidden">
+              <div className="grid grid-cols-[auto_auto_1fr_auto_auto] bg-cream text-navy-800 text-sm font-medium">
+                <div className="py-2 px-4">Flugzeug</div>
+                <div className="py-2 px-4">Beginn</div>
+                <div className="py-2 px-4">Schüler</div>
+                <div className="py-2 px-4">Zweck</div>
+                <div className="py-2 px-4">Bemerkung</div>
+              </div>
+              {myInstructorFlights.map((r, i) => (
+                <Link
+                  key={r.id}
+                  href={`/reservations/${r.id}`}
+                  className={`grid grid-cols-[auto_auto_1fr_auto_auto] text-sm hover:bg-cream-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}
+                >
+                  <div className="py-2 px-4"><span className="reg-plate">{r.registration}</span></div>
+                  <div className="py-2 px-4 text-neutral-700">{format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}</div>
+                  <div className="py-2 px-4 text-navy-800">{r.pilot_name ?? '—'}</div>
+                  <div className="py-2 px-4"><PurposeBadge purpose={r.purpose as string} /></div>
+                  <div className="py-2 px-4 text-neutral-700 truncate">{r.remarks ?? '—'}</div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* My reservations */}
         <section className="mb-10">
           <h2 className="text-xl text-feather mb-3">Meine Reservationen</h2>
           {myReservations && myReservations.length > 0 ? (
             <div className="border border-neutral-200 overflow-hidden">
-              <table className="w-full text-sm tab-data">
-                <thead>
-                  <tr className="bg-cream text-navy-800 text-left">
-                    <th className="py-2 px-4 font-medium">Flugzeug</th>
-                    <th className="py-2 px-4 font-medium">Beginn</th>
-                    <th className="py-2 px-4 font-medium">Ende</th>
-                    <th className="py-2 px-4 font-medium">Zweck</th>
-                    <th className="py-2 px-4 font-medium">Bemerkung</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myReservations.map((r, i) => (
-                    <tr
-                      key={r.id}
-                      className={i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}
-                    >
-                      <td className="py-2 px-4"><span className="reg-plate">{r.registration}</span></td>
-                      <td className="py-2 px-4 text-neutral-700">{format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}</td>
-                      <td className="py-2 px-4 text-neutral-700">{format(new Date(r.ends_at), 'dd.MM.yyyy HH:mm')}</td>
-                      <td className="py-2 px-4"><PurposeBadge purpose={r.purpose as string} /></td>
-                      <td className="py-2 px-4 text-neutral-700">{r.remarks ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="grid grid-cols-[auto_auto_auto_auto_1fr] bg-cream text-navy-800 text-sm font-medium">
+                <div className="py-2 px-4">Flugzeug</div>
+                <div className="py-2 px-4">Beginn</div>
+                <div className="py-2 px-4">Ende</div>
+                <div className="py-2 px-4">Zweck</div>
+                <div className="py-2 px-4">Bemerkung</div>
+              </div>
+              {myReservations.map((r, i) => (
+                <Link
+                  key={r.id}
+                  href={`/reservations/${r.id}`}
+                  className={`grid grid-cols-[auto_auto_auto_auto_1fr] text-sm hover:bg-cream-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}
+                >
+                  <div className="py-2 px-4"><span className="reg-plate">{r.registration}</span></div>
+                  <div className="py-2 px-4 text-neutral-700">{format(new Date(r.starts_at), 'dd.MM.yyyy HH:mm')}</div>
+                  <div className="py-2 px-4 text-neutral-700">{format(new Date(r.ends_at), 'dd.MM.yyyy HH:mm')}</div>
+                  <div className="py-2 px-4"><PurposeBadge purpose={r.purpose as string} /></div>
+                  <div className="py-2 px-4 text-neutral-700 truncate">{r.remarks ?? '—'}</div>
+                </Link>
+              ))}
             </div>
           ) : (
             <div className="border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-500">

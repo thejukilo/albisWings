@@ -34,13 +34,16 @@ export default async function ReservationDetailPage({
 
   // Check if current user can edit
   const isOwner = row.pilot_id === user.id;
+  const isAssignedInstructor = row.instructor_id === user.id;
   const { data: roleRows } = await supabase
     .from('user_roles')
     .select('role')
     .eq('user_id', user.id);
   const myRoles = (roleRows ?? []).map(r => r.role);
   const isAdmin = myRoles.includes('admin') || myRoles.includes('board') || myRoles.includes('ops_manager');
-  const canEdit = (isOwner || isAdmin) && row.status !== 'cancelled' && row.status !== 'completed';
+  const canEdit = (isOwner || isAssignedInstructor || isAdmin)
+    && row.status !== 'cancelled'
+    && row.status !== 'completed';
 
   // For edit form, we need the list of instructors
   let instructors: Instructor[] = [];
@@ -79,7 +82,11 @@ export default async function ReservationDetailPage({
           <h1 className="text-3xl font-semibold text-navy-800">Reservation</h1>
           <p className="text-feather text-sm">
             {canEdit
-              ? 'Sie können diese Reservation bearbeiten oder stornieren.'
+              ? isOwner
+                ? 'Sie können diese Reservation bearbeiten oder stornieren.'
+                : isAssignedInstructor
+                  ? 'Sie sind als Fluglehrer eingeteilt und können diese Reservation bearbeiten.'
+                  : 'Sie bearbeiten als Admin/Vorstand.'
               : isOwner
                 ? 'Diese Reservation ist nicht mehr veränderbar.'
                 : 'Diese Reservation gehört einem anderen Mitglied.'}
