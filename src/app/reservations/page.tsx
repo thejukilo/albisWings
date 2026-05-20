@@ -47,12 +47,20 @@ export default async function ReservationsPage({
     .order('sort_order', { ascending: true })
     .order('registration', { ascending: true });
 
-  const { data: instructorRows } = await supabase
-    .from('users')
-    .select('id, first_name, last_name, display_name, initials, user_roles!inner(role)')
-    .eq('user_roles.role', 'instructor')
-    .eq('active', true)
-    .order('last_name');
+  const { data: roleRows } = await supabase
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', 'instructor');
+  const instructorIds = (roleRows ?? []).map((r) => r.user_id);
+
+  const { data: instructorRows } = instructorIds.length === 0
+    ? { data: [] }
+    : await supabase
+        .from('users')
+        .select('id, first_name, last_name, display_name, initials')
+        .in('id', instructorIds)
+        .eq('active', true)
+        .order('last_name');
 
   const aircraft: Aircraft[] = aircraftRows ?? [];
   const instructors: Instructor[] = (instructorRows ?? []).map((r) => ({

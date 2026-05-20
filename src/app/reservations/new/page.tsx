@@ -29,12 +29,23 @@ export default async function NewReservationPage({
     .eq('active', true)
     .order('sort_order');
 
-  const { data: instructorRows } = await supabase
-    .from('users')
-    .select('id, first_name, last_name, display_name, initials, user_roles!inner(role)')
-    .eq('user_roles.role', 'instructor')
-    .eq('active', true)
-    .order('last_name');
+  // Two-step: get instructor user IDs, then fetch their profiles.
+  // More reliable than PostgREST embed-with-filter syntax.
+  const { data: roleRows } = await supabase
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', 'instructor');
+
+  const instructorIds = (roleRows ?? []).map((r) => r.user_id);
+
+  const { data: instructorRows } = instructorIds.length === 0
+    ? { data: [] }
+    : await supabase
+        .from('users')
+        .select('id, first_name, last_name, display_name, initials')
+        .in('id', instructorIds)
+        .eq('active', true)
+        .order('last_name');
 
   const aircraft: Aircraft[] = aircraftRows ?? [];
   const instructors: Instructor[] = (instructorRows ?? []).map((r) => ({
