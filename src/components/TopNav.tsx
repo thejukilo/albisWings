@@ -3,21 +3,20 @@ import Image from 'next/image';
 import { signOut } from '@/app/actions';
 
 const navItems = [
-  { href: '/',             label: 'Check-in',     active: true },
-  { href: '/reservations', label: 'Reservationen' },
-  { href: '/flightlog',    label: 'Flightlog' },
-  { href: '/techlog',      label: 'Techlog' },
-  { href: '/drive',        label: 'FlyDrive' },
-  { href: '/contacts',     label: 'Kontakte' },
-  { href: '/shop',         label: 'Shop' },
-  { href: '/training',     label: 'Training' },
-  { href: '/account',      label: 'Mein Konto' },
+  { href: '/',             key: 'checkin',      label: 'Check-in' },
+  { href: '/reservations', key: 'reservations', label: 'Reservationen' },
+  { href: '/flightlog',    key: 'flightlog',    label: 'Flightlog' },
+  { href: '/techlog',      key: 'techlog',      label: 'Techlog' },
+  { href: '/drive',        key: 'drive',        label: 'FlyDrive' },
+  { href: '/contacts',     key: 'contacts',     label: 'Kontakte' },
+  { href: '/shop',         key: 'shop',         label: 'Shop' },
+  { href: '/training',     key: 'training',     label: 'Training' },
+  { href: '/account',      key: 'account',      label: 'Mein Konto' },
 ];
 
-export function TopNav({ userName }: { userName: string }) {
+export function TopNav({ userName, active = 'checkin' }: { userName: string; active?: string }) {
   return (
     <header>
-      {/* Top bar: logo + user */}
       <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
         <Link href="/" aria-label="Albis Wings home">
           <Image
@@ -42,7 +41,6 @@ export function TopNav({ userName }: { userName: string }) {
         </div>
       </div>
 
-      {/* Navigation stripe -- matches the cream bar on the existing site */}
       <div className="nav-stripe">
         <nav className="max-w-7xl mx-auto px-6">
           <ul className="flex items-center gap-1 overflow-x-auto py-3">
@@ -51,7 +49,7 @@ export function TopNav({ userName }: { userName: string }) {
                 <Link
                   href={item.href}
                   className={`text-sm whitespace-nowrap transition-colors px-3 ${
-                    item.active
+                    active === item.key
                       ? 'text-navy-800 font-medium'
                       : 'text-neutral-500 hover:text-navy-800'
                   }`}
