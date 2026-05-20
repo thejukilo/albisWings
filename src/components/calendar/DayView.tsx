@@ -89,9 +89,7 @@ export function DayView({
               </div>
               {aircraft.map((a, idx) => {
                 const tint = aircraftTint(idx);
-                const acBusy = aircraftBookedAt(a.id, hour);
-                const bookable = schulungMode && !instrBusy && !acBusy;
-                const href = bookable
+                const href = schulungMode
                   ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
                   : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
                 return (
@@ -99,7 +97,7 @@ export function DayView({
                     key={`cell-${a.id}-${h}`}
                     href={href}
                     className={`${tint.bg} border-r border-b border-neutral-100 hover:brightness-95 transition-all relative ${
-                      bookable ? 'schulung-bookable' : ''
+                      instrBusy ? 'instructor-busy' : ''
                     }`}
                     style={{ height: HOUR_PX }}
                     aria-label={`Neue Reservation ${a.registration} ${hour}:00`}
@@ -163,21 +161,12 @@ export function DayView({
       </div>
 
       <style>{`
-        .schulung-bookable {
-          box-shadow: inset 0 0 0 2px #3B6D11;
+        .instructor-busy {
+          background-image:
+            linear-gradient(rgba(163,45,45,0.18), rgba(163,45,45,0.18)),
+            var(--ac-tint, transparent);
+          background-blend-mode: multiply;
         }
-        .schulung-bookable::after {
-          content: '✓';
-          position: absolute;
-          top: 50%; left: 50%;
-          transform: translate(-50%, -50%);
-          font-size: 18px;
-          color: #3B6D11;
-          font-weight: 700;
-          opacity: 0.5;
-          pointer-events: none;
-        }
-        .schulung-bookable:hover { filter: brightness(0.92); }
       `}</style>
     </div>
   );

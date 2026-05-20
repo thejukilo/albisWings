@@ -89,7 +89,7 @@ export default async function ReservationsPage({
             <h1 className="text-3xl font-semibold text-navy-800">Reservationen</h1>
             <p className="text-feather">
               {schulungInstructorId
-                ? 'Grün markierte Slots sind buchbar (Lehrer + Flugzeug verfügbar).'
+                ? 'Rot markierte Stunden sind bereits mit dem Lehrer belegt.'
                 : 'Klicke einen freien Slot um zu reservieren.'}
             </p>
           </div>

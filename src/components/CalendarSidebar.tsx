@@ -73,7 +73,7 @@ export function CalendarSidebar({
             Mit <strong>{activeInstructor.display_name}</strong>.
           </p>
           <p className="text-[10px] text-neutral-500 leading-tight mt-2">
-            Grüne Slots sind buchbar (Lehrer & Flugzeug frei).
+            Rot markierte Stunden = Lehrer ist schon gebucht.
           </p>
         </div>
       )}
@@ -88,8 +88,11 @@ export function CalendarSidebar({
           <li><span className="inline-block w-3 h-2.5 bg-red-700 align-middle mr-2"></span>Maintenance</li>
           {schulungMode && (
             <li>
-              <span className="inline-block w-3 h-2.5 align-middle mr-2 border-2 border-emerald-700"></span>
-              Schulung buchbar
+              <span
+                className="inline-block w-3 h-2.5 align-middle mr-2"
+                style={{ background: 'rgba(163,45,45,0.20)' }}
+              />
+              Lehrer anderswo belegt
             </li>
           )}
         </ul>

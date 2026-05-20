@@ -158,9 +158,7 @@ export function WeekView({
                   >
                     {visibleAircraft.map((a) => {
                       const tint = aircraftTint(acIndexById.get(a.id) ?? 0);
-                      const acBusy = aircraftBookedAt(a.id, dKey, hour);
-                      const bookable = schulungMode && !instructorBusy && !acBusy;
-                      const href = bookable
+                      const href = schulungMode
                         ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
                         : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
                       return (
@@ -168,7 +166,7 @@ export function WeekView({
                           key={`cell-${a.id}-${dKey}-${h}`}
                           href={href}
                           className={`${tint.bg} border-r border-r-white/40 last:border-r-0 hover:brightness-95 transition-all relative ${
-                            bookable ? 'schulung-bookable' : ''
+                            instructorBusy ? 'instructor-busy' : ''
                           }`}
                           aria-label={`${a.registration} ${formatLocal(d, 'dd.MM.')} ${hour}:00`}
                         />
@@ -244,21 +242,12 @@ export function WeekView({
       </div>
 
       <style>{`
-        .schulung-bookable {
-          box-shadow: inset 0 0 0 2px #3B6D11;
+        .instructor-busy {
+          background-image:
+            linear-gradient(rgba(163,45,45,0.18), rgba(163,45,45,0.18)),
+            var(--ac-tint, transparent);
+          background-blend-mode: multiply;
         }
-        .schulung-bookable::after {
-          content: '✓';
-          position: absolute;
-          top: 50%; left: 50%;
-          transform: translate(-50%, -50%);
-          font-size: 14px;
-          color: #3B6D11;
-          font-weight: 700;
-          opacity: 0.6;
-          pointer-events: none;
-        }
-        .schulung-bookable:hover { filter: brightness(0.92); }
       `}</style>
     </div>
   );
