@@ -1,7 +1,6 @@
-import { format } from 'date-fns';
 import Link from 'next/link';
 import type { Aircraft, ReservationRow } from '@/lib/types';
-import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses } from '@/lib/calendar';
+import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight } from '@/lib/calendar';
 
 export function DayView({
   date,
@@ -14,18 +13,14 @@ export function DayView({
   reservations: ReservationRow[];
   myUserId: string;
 }) {
-  // Pre-bucket events per aircraft.
   const byAircraft = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
     if (!byAircraft.has(r.aircraft_id)) byAircraft.set(r.aircraft_id, []);
     byAircraft.get(r.aircraft_id)!.push(r);
   }
 
-  const dayStartMs = new Date(date.getFullYear(), date.getMonth(), date.getDate(), DAY_START_HOUR).getTime();
-  const dayEndMs   = new Date(date.getFullYear(), date.getMonth(), date.getDate(), DAY_END_HOUR).getTime();
-
-  // Pixel height per hour drives the absolute-positioned event blocks.
   const HOUR_PX = 48;
+  const dateKey = formatLocal(date, 'yyyy-MM-dd');
 
   return (
     <div className="overflow-x-auto">
@@ -33,7 +28,6 @@ export function DayView({
         className="grid border-t border-neutral-200"
         style={{ gridTemplateColumns: `60px repeat(${aircraft.length}, minmax(140px, 1fr))` }}
       >
-        {/* Header row */}
         <div className="bg-neutral-50 border-b border-r border-neutral-200" />
         {aircraft.map((a) => (
           <div key={a.id} className="bg-white border-b border-r border-neutral-200 px-3 py-2 text-center">
@@ -42,7 +36,6 @@ export function DayView({
           </div>
         ))}
 
-        {/* Time + cells */}
         {Array.from({ length: HOURS_VISIBLE }).map((_, h) => {
           const hour = DAY_START_HOUR + h;
           return (
@@ -56,7 +49,7 @@ export function DayView({
               {aircraft.map((a) => (
                 <Link
                   key={`cell-${a.id}-${h}`}
-                  href={`/reservations/new?aircraft=${a.id}&date=${format(date, 'yyyy-MM-dd')}&hour=${hour}`}
+                  href={`/reservations/new?aircraft=${a.id}&date=${dateKey}&hour=${hour}`}
                   className="border-r border-b border-neutral-100 relative group hover:bg-cream/40 transition-colors"
                   style={{ height: HOUR_PX }}
                   aria-label={`Neue Reservation ${a.registration} ${hour}:00`}
@@ -67,7 +60,6 @@ export function DayView({
         })}
       </div>
 
-      {/* Overlay events as absolutely-positioned blocks per column */}
       <div className="relative" style={{ marginTop: -(HOURS_VISIBLE * HOUR_PX), pointerEvents: 'none' }}>
         <div
           className="grid"
@@ -79,15 +71,16 @@ export function DayView({
             return (
               <div key={a.id} className="relative" style={{ height: HOURS_VISIBLE * HOUR_PX }}>
                 {evs.map((r) => {
-                  const startMs = new Date(r.starts_at).getTime();
-                  const endMs   = new Date(r.ends_at).getTime();
-                  const clippedStart = Math.max(startMs, dayStartMs);
-                  const clippedEnd   = Math.min(endMs, dayEndMs);
+                  // Position relative to club-local midnight of the displayed date.
+                  const startH = localHoursFromMidnight(r.starts_at, date);
+                  const endH   = localHoursFromMidnight(r.ends_at,   date);
+                  const clippedStart = Math.max(startH, DAY_START_HOUR);
+                  const clippedEnd   = Math.min(endH,   DAY_END_HOUR);
                   if (clippedEnd <= clippedStart) return null;
-                  const topPx    = ((clippedStart - dayStartMs) / 3_600_000) * HOUR_PX;
-                  const heightPx = ((clippedEnd - clippedStart) / 3_600_000) * HOUR_PX;
+                  const topPx    = (clippedStart - DAY_START_HOUR) * HOUR_PX;
+                  const heightPx = (clippedEnd - clippedStart) * HOUR_PX;
                   const isMine = r.pilot_id === myUserId;
-                  const isUnstaffed = r.pilot_id === null; // maintenance / standby
+                  const isUnstaffed = r.pilot_id === null;
                   return (
                     <Link
                       key={r.id}
@@ -102,7 +95,7 @@ export function DayView({
                       </div>
                       <div className="opacity-90 truncate">{r.remarks ?? r.purpose}</div>
                       <div className="opacity-75 font-mono">
-                        {format(new Date(r.starts_at), 'HH:mm')}–{format(new Date(r.ends_at), 'HH:mm')}
+                        {formatLocal(r.starts_at, 'HH:mm')}–{formatLocal(r.ends_at, 'HH:mm')}
                       </div>
                     </Link>
                   );
