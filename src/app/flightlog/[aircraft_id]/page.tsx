@@ -62,23 +62,42 @@ export default async function AircraftFlightlogPage({
     .range(offset, offset + PAGE_SIZE - 1);
   if (flErr) console.error('flights fetch error', flErr);
 
-  // Fetch pilot rows separately and build a map.
+  // Fetch pilot rows separately and build a map. We do it in two steps:
+  // 1. get flight_pilots rows for these flight IDs
+  // 2. get the user records for the user_ids referenced
+  // This avoids PostgREST's FK-ambiguity quirk with flight_pilots → users
+  // (there's both user_id and signed_by, so auto-detect can be unreliable).
   const flightIds = (flights ?? []).map(f => f.id);
   const pilotByFlight = new Map<string, { user_id: string; function: string; first_name: string; last_name: string; display_name: string }[]>();
   if (flightIds.length > 0) {
     const { data: fpRows, error: fpErr } = await supabase
       .from('flight_pilots')
-      .select('flight_id, user_id, function, user:users(display_name, first_name, last_name)')
+      .select('flight_id, user_id, function')
       .in('flight_id', flightIds);
     if (fpErr) console.error('flight_pilots fetch error', fpErr);
+
+    const userIds = Array.from(new Set((fpRows ?? []).map(r => r.user_id)));
+    const userById = new Map<string, { first_name: string; last_name: string; display_name: string }>();
+    if (userIds.length > 0) {
+      const { data: uRows, error: uErr } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, display_name')
+        .in('id', userIds);
+      if (uErr) console.error('users fetch error', uErr);
+      for (const u of (uRows ?? []) as any[]) {
+        userById.set(u.id, { first_name: u.first_name, last_name: u.last_name, display_name: u.display_name });
+      }
+    }
+
     for (const r of (fpRows ?? []) as any[]) {
       const arr = pilotByFlight.get(r.flight_id) ?? [];
+      const u = userById.get(r.user_id);
       arr.push({
         user_id: r.user_id,
         function: r.function,
-        first_name: r.user?.first_name ?? '',
-        last_name:  r.user?.last_name  ?? '',
-        display_name: r.user?.display_name ?? '',
+        first_name: u?.first_name ?? '',
+        last_name:  u?.last_name  ?? '',
+        display_name: u?.display_name ?? '',
       });
       pilotByFlight.set(r.flight_id, arr);
     }
