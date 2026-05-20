@@ -180,12 +180,7 @@ export function BookingForm({
           <FieldLabel>Geplante Flugzeit</FieldLabel>
           <div className="text-[11px] text-neutral-500 mt-0.5">(hh:mm)</div>
         </div>
-        <input
-          value={plannedHours}
-          onChange={(e) => setPlannedHours(e.target.value)}
-          placeholder="hh:mm"
-          className={`${inputClass} font-mono`}
-        />
+        <DurationInput value={plannedHours} onChange={setPlannedHours} />
       </div>
 
       {submitError && (
@@ -241,4 +236,69 @@ function defaultEndTime(startStr?: string) {
 function toDatetimeLocalString(d: Date) {
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * hh:mm input that auto-formats raw digits on blur:
+ *   "0250" -> "02:50"
+ *   "250"  -> "02:50"
+ *   "2"    -> "02:00"
+ *   "2:5"  -> "02:05"   (explicit colon respected)
+ *   "12:5" -> "12:05"
+ * Invalid minute values (60+) are clamped to 59.
+ */
+function DurationInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  function format(raw: string): string {
+    raw = raw.trim();
+    if (raw === '') return '';
+    // Explicit colon -> treat parts as hh and mm independently
+    if (raw.includes(':')) {
+      const [h, m] = raw.split(':');
+      const hDigits = (h || '').replace(/\D/g, '');
+      const mDigits = (m || '').replace(/\D/g, '');
+      if (hDigits === '' && mDigits === '') return '';
+      let hNum = parseInt(hDigits || '0', 10);
+      let mNum = parseInt(mDigits || '0', 10);
+      if (mNum > 59) mNum = 59;
+      return `${hNum.toString().padStart(2, '0')}:${mNum.toString().padStart(2, '0')}`;
+    }
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    let hh = '', mm = '';
+    if (digits.length <= 2) {
+      hh = digits.padStart(2, '0');
+      mm = '00';
+    } else if (digits.length === 3) {
+      hh = '0' + digits.slice(0, 1);
+      mm = digits.slice(1);
+    } else {
+      hh = digits.slice(0, digits.length - 2);
+      mm = digits.slice(-2);
+    }
+    let hNum = parseInt(hh, 10);
+    let mNum = parseInt(mm, 10);
+    if (mNum > 59) mNum = 59;
+    return `${hNum.toString().padStart(2, '0')}:${mNum.toString().padStart(2, '0')}`;
+  }
+
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    onChange(format(e.target.value));
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    // While typing, allow digits and one colon
+    const cleaned = e.target.value.replace(/[^\d:]/g, '');
+    onChange(cleaned);
+  }
+
+  return (
+    <input
+      value={value}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder="hh:mm"
+      inputMode="numeric"
+      className={`${inputClass} font-mono`}
+    />
+  );
 }
