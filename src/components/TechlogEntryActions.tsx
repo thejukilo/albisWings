@@ -84,7 +84,7 @@ export function TechlogEntryActions({
           {submitting ? 'Schliesse…' : 'Eintrag schliessen'}
         </button>
         <p className="text-[11px] text-neutral-500">
-          Beim Schliessen einer AOG-Eintragung wird das Flugzeug wieder freigegeben.
+          Beim Schliessen eines AOG-Eintrags wird das Flugzeug wieder freigegeben.
         </p>
       </div>
     </form>

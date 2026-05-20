@@ -116,7 +116,7 @@ export function NewTechlogEntryForm({
           </select>
           {relevance === 'flight_relevant_aog' && (
             <p className="text-[11px] text-red-700 mt-1">
-              ⚠ Das Flugzeug wird sofort AOG gesetzt und für Solo-Reservationen gesperrt.
+              ⚠ Das Flugzeug wird sofort ausser Betrieb gesetzt und für Reservationen gesperrt.
             </p>
           )}
         </div>

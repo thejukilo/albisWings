@@ -62,8 +62,8 @@ export default async function AircraftTechlogPage({
           </div>
           {isAog && (
             <div className="bg-red-600 text-white px-4 py-2 rounded-sm">
-              <div className="text-xs uppercase tracking-wider font-bold">Aircraft On Ground</div>
-              <div className="text-[11px] opacity-90">Solo-Reservation gesperrt bis Eintrag geschlossen</div>
+              <div className="text-xs uppercase tracking-wider font-bold">Ausser Betrieb</div>
+              <div className="text-[11px] opacity-90">Reservation gesperrt bis Eintrag geschlossen</div>
             </div>
           )}
         </div>

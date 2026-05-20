@@ -139,7 +139,7 @@ export default async function CheckInPage() {
               </span>
               <div className="flex-1">
                 <div className="text-sm font-semibold text-red-900 mb-1">
-                  {aogAircraft.length === 1 ? 'Ein Flugzeug ist Aircraft On Ground' : `${aogAircraft.length} Flugzeuge sind Aircraft On Ground`}
+                  {aogAircraft.length === 1 ? 'Ein Flugzeug ist ausser Betrieb' : `${aogAircraft.length} Flugzeuge sind ausser Betrieb`}
                 </div>
                 <div className="text-sm text-red-800">
                   {aogAircraft.map((a, i) => (
@@ -155,7 +155,7 @@ export default async function CheckInPage() {
                   ))}
                 </div>
                 <div className="text-[11px] text-red-700 mt-1">
-                  Solo-Reservation gesperrt bis Eintrag durch Mechaniker geschlossen.
+                  Reservation gesperrt bis Eintrag durch Mechaniker geschlossen.
                 </div>
               </div>
             </div>

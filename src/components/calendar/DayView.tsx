@@ -82,7 +82,7 @@ export function DayView({
                 {isAog && <span className="mr-1">⚠</span>}{a.registration}
               </div>
               <div className={`text-[10px] mt-1 ${isAog ? 'text-white font-semibold uppercase' : 'text-neutral-500'}`}>
-                {isAog ? 'AOG — keine Solo-Reservation' : `${a.manufacturer} ${a.model}`}
+                {isAog ? 'Ausser Betrieb — gesperrt' : `${a.manufacturer} ${a.model}`}
               </div>
             </div>
           );
