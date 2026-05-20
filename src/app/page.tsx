@@ -77,6 +77,11 @@ export default async function CheckInPage() {
     .select('role')
     .eq('user_id', user.id);
   const isInstructor = (myRoles ?? []).some(r => r.role === 'instructor');
+  // Only roles that can act on techlog entries see the open-defects banners.
+  // Regular pilots and members can't reject/approve/sign-off, so it's just noise.
+  const canSeeTechlogIssues = (myRoles ?? []).some(r =>
+    ['admin', 'board', 'mechanic', 'cami', 'ops_manager'].includes(r.role)
+  );
 
   const { data: myInstructorFlights } = isInstructor ? await supabase
     .from('v_reservation_grid')
@@ -152,8 +157,8 @@ export default async function CheckInPage() {
           </div>
         )}
 
-        {/* Open non-AOG defects -- subtler line */}
-        {openDefects && openDefects.length > 0 && (
+        {/* Open non-AOG defects — only relevant for staff who can act on them */}
+        {canSeeTechlogIssues && openDefects && openDefects.length > 0 && (
           <div className="mb-8 border border-signal/40 bg-cream-50 py-2 px-4 text-sm">
             <span className="text-signal-600 font-medium">Offene Techlog-Einträge:</span>
             <span className="ml-2 text-neutral-700">
