@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Aircraft, ReservationRow } from '@/lib/types';
-import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight, aircraftTint } from '@/lib/calendar';
+import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight, aircraftTint, shortenName } from '@/lib/calendar';
 
 export function DayView({
   date,
@@ -93,8 +93,9 @@ export function DayView({
                     <Link
                       key={r.id}
                       href={`/reservations/${r.id}`}
-                      className={`absolute left-0.5 right-0.5 rounded px-2 py-1 text-[10px] leading-tight overflow-hidden ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-2 ring-signal-DEFAULT ring-inset' : ''}`}
+                      className={`absolute left-0.5 right-0.5 rounded px-2 py-1 text-[10px] leading-tight overflow-hidden flex flex-col ${eventClasses(r.purpose, isMine)} ${isHighlighted ? 'ring-2 ring-signal-DEFAULT ring-inset' : ''}`}
                       style={{ top: topPx, height: heightPx, pointerEvents: 'auto' }}
+                      title={buildTooltipDay(r, isMine, isUnstaffed)}
                     >
                       <div className="font-medium truncate">
                         {isUnstaffed
@@ -105,6 +106,11 @@ export function DayView({
                       <div className="opacity-75 font-mono">
                         {formatLocal(r.starts_at, 'HH:mm')}–{formatLocal(r.ends_at, 'HH:mm')}
                       </div>
+                      {r.instructor_name && (
+                        <div className="opacity-85 truncate mt-auto pt-0.5 border-t border-white/25 text-[9px]">
+                          + {shortenName(r.instructor_name).short}
+                        </div>
+                      )}
                     </Link>
                   );
                 })}
@@ -115,4 +121,17 @@ export function DayView({
       </div>
     </div>
   );
+}
+
+function buildTooltipDay(r: ReservationRow, isMine: boolean, isUnstaffed: boolean): string {
+  const time = `${formatLocal(r.starts_at, 'HH:mm')}–${formatLocal(r.ends_at, 'HH:mm')}`;
+  const date = formatLocal(r.starts_at, 'dd.MM.');
+  if (isUnstaffed) {
+    const label = r.purpose === 'maintenance' ? 'Wartung' : 'Standby';
+    return `${r.registration} · ${date} ${time}\n${label}${r.remarks ? ` · ${r.remarks}` : ''}`;
+  }
+  const pilot = isMine ? `${r.pilot_name} (du)` : r.pilot_name;
+  const lehrer = r.instructor_name ? ` · Lehrer: ${r.instructor_name}` : '';
+  const remark = r.remarks ? `\n${r.remarks}` : '';
+  return `${r.registration} · ${date} ${time}\nPilot: ${pilot}${lehrer}${remark}`;
 }

@@ -126,6 +126,23 @@ export function aircraftTint(index: number): { bg: string; chip: string } {
   return AIRCRAFT_TINTS[index % AIRCRAFT_TINTS.length];
 }
 
+/** Short form of a "Daniel Berchtold" style display name.
+ *  - "Daniel Berchtold" -> { initials: "D.B.", short: "D.Berchtold", full: "Daniel Berchtold" }
+ *  - For width-adaptive rendering: very narrow -> initials, medium -> short, wide -> full.
+ */
+export function shortenName(name: string): { initials: string; short: string; full: string } {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { initials: '', short: '', full: '' };
+  if (parts.length === 1) return { initials: (parts[0][0] ?? '') + '.', short: parts[0], full: parts[0] };
+  const first = parts[0];
+  const last  = parts[parts.length - 1];
+  return {
+    initials: `${first[0]}.${last[0]}.`,
+    short:    `${first[0]}.${last}`,
+    full:     name,
+  };
+}
+
 export function isoDow(d: Date): number {
   // Monday = 0, Sunday = 6
   const js = getDay(d); // Sun=0..Sat=6
