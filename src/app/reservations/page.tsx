@@ -79,6 +79,13 @@ export default async function ReservationsPage({
     .order('starts_at', { ascending: true });
   const reservations: ReservationRow[] = (rRows ?? []) as ReservationRow[];
 
+  // AOG aircraft: any with open Flight Relevant techlog entries
+const { data: aogRows } = await supabase
+  .from('v_open_techlog')
+  .select('aircraft_id, grounding_defects')
+  .gt('grounding_defects', 0);
+const aogAircraftIds = new Set<string>((aogRows ?? []).map(r => r.aircraft_id));
+
   const aircraftForDay = aircraft.filter(a => selectedAircraft.has(a.id));
 
   return (
@@ -108,9 +115,9 @@ export default async function ReservationsPage({
           />
           <div className="flex-1 min-w-0">
             <CalendarToolbar view={view} anchor={anchor} />
-            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} />}
-            {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} />}
-            {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
+              {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} aogAircraftIds={aogAircraftIds} />}
+              {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} aogAircraftIds={aogAircraftIds} />}
+              {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
           </div>
         </div>
       </div>
