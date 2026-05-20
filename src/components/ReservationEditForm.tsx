@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Instructor } from '@/lib/types';
 import { updateReservation, cancelReservation } from '@/app/reservations/actions';
@@ -41,6 +41,14 @@ export function ReservationEditForm({
   const [saving, setSaving]   = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [toast, setToast]     = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Show instructor field for schulung
   const needsInstructor = purpose === 'schulung';
@@ -60,7 +68,9 @@ export function ReservationEditForm({
       });
       if (!result.ok) {
         setErrors(result.blockers);
+        setToast({ kind: 'error', text: 'Konnte nicht gespeichert werden.' });
       } else {
+        setToast({ kind: 'success', text: 'Änderungen gespeichert.' });
         startTransition(() => router.refresh());
       }
     } finally {
@@ -75,7 +85,9 @@ export function ReservationEditForm({
       const result = await cancelReservation(reservation.id);
       if (!result.ok) {
         setErrors([{ code: 'cancel', label: 'Stornieren', detail: result.error ?? 'Fehler' }]);
+        setToast({ kind: 'error', text: 'Stornieren fehlgeschlagen.' });
       } else {
+        // Don't bother with toast — we redirect immediately
         router.push('/reservations');
       }
     } finally {
@@ -84,7 +96,8 @@ export function ReservationEditForm({
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-4">
+    <>
+      <form onSubmit={handleSave} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-neutral-600 mb-1">Flugzeug</label>
@@ -220,6 +233,39 @@ export function ReservationEditForm({
         </div>
       </div>
     </form>
+
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-sm shadow-lg border text-sm flex items-center gap-3 animate-slide-up ${
+            toast.kind === 'success'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+              : 'bg-red-50 border-red-300 text-red-900'
+          }`}
+        >
+          <span className={`inline-block w-2 h-2 rounded-full ${
+            toast.kind === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+          }`} />
+          {toast.text}
+          <button
+            onClick={() => setToast(null)}
+            className="ml-2 text-neutral-500 hover:text-neutral-700"
+            aria-label="Schließen"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slide-up {
+          from { transform: translateY(20px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+        .animate-slide-up { animation: slide-up 200ms ease-out; }
+      `}</style>
+    </>
   );
 }
 
