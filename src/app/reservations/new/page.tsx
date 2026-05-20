@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { TopNav } from '@/components/TopNav';
 import { BookingForm } from '@/components/BookingForm';
 import type { Aircraft, Instructor } from '@/lib/types';
@@ -43,7 +42,6 @@ export default async function NewReservationPage({
     display_name: r.display_name, initials: r.initials,
   }));
 
-  // Build defaults from URL parameters
   let startsAt: string | undefined;
   let endsAt: string | undefined;
   if (sp.date) {
@@ -57,16 +55,8 @@ export default async function NewReservationPage({
     <>
       <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="reservations" />
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="text-sm text-neutral-500 mb-3">
-          <Link href="/reservations" className="text-feather-600 underline decoration-feather/40 underline-offset-2">
-            Reservationen
-          </Link>
-          <span className="mx-2">·</span>
-          <span>Neue Reservation</span>
-        </div>
-
-        <h1 className="text-3xl font-semibold text-navy-800 mb-1">Neue Reservation</h1>
-        <p className="text-feather mb-8">Bitte fülle die Angaben unten aus.</p>
+        <h1 className="text-3xl font-semibold text-navy-800 mb-1">Reservation</h1>
+        <p className="text-xl text-feather font-light mb-8">Flugzeug reservieren</p>
 
         <BookingForm
           aircraft={aircraft}
