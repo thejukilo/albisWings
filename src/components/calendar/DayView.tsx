@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import type { Aircraft, ReservationRow } from '@/lib/types';
-import type { AvailabilityRow } from '@/components/calendar/AvailabilityTypes';
 import { DAY_START_HOUR, DAY_END_HOUR, HOURS_VISIBLE, eventClasses, formatLocal, localHoursFromMidnight, getLocalParts, aircraftTint, shortenName } from '@/lib/calendar';
 
 export function DayView({
@@ -9,14 +8,12 @@ export function DayView({
   reservations,
   myUserId,
   schulungInstructorId,
-  instructorAvailability,
 }: {
   date: Date;
   aircraft: Aircraft[];
   reservations: ReservationRow[];
   myUserId: string;
   schulungInstructorId: string | null;
-  instructorAvailability: AvailabilityRow[];
 }) {
   const byAircraft = new Map<string, ReservationRow[]>();
   for (const r of reservations) {
@@ -27,21 +24,9 @@ export function DayView({
   const dKey = formatLocal(date, 'yyyy-MM-dd');
   const schulungMode = schulungInstructorId !== null;
 
-  // Pre-compute instructor's avail/booked windows for this day
-  const instructorAvail: { start: number; end: number }[] = [];
+  // Instructor's already-booked windows for this day
   const instructorBooked: { start: number; end: number }[] = [];
   if (schulungMode) {
-    for (const a of instructorAvailability) {
-      if (!a.available) continue;
-      const startKey = formatLocal(a.starts_at, 'yyyy-MM-dd');
-      const endKey   = formatLocal(a.ends_at,   'yyyy-MM-dd');
-      if (dKey < startKey || dKey > endKey) continue;
-      const sp = getLocalParts(a.starts_at);
-      const ep = getLocalParts(a.ends_at);
-      const startH = startKey === dKey ? sp.hour + sp.minute / 60 : DAY_START_HOUR;
-      const endH   = endKey   === dKey ? ep.hour + ep.minute / 60 : DAY_END_HOUR;
-      instructorAvail.push({ start: startH, end: endH });
-    }
     for (const r of reservations) {
       if (r.instructor_id !== schulungInstructorId) continue;
       const startKey = formatLocal(r.starts_at, 'yyyy-MM-dd');
@@ -55,9 +40,6 @@ export function DayView({
     }
   }
 
-  function instructorAvailableAt(hour: number): boolean {
-    return instructorAvail.some(w => hour >= w.start && hour < w.end);
-  }
   function instructorBookedAt(hour: number): boolean {
     return instructorBooked.some(w => hour >= w.start && hour < w.end);
   }
@@ -96,7 +78,6 @@ export function DayView({
 
         {Array.from({ length: HOURS_VISIBLE }).map((_, h) => {
           const hour = DAY_START_HOUR + h;
-          const instrAvail = !schulungMode || instructorAvailableAt(hour);
           const instrBusy  = schulungMode && instructorBookedAt(hour);
           return (
             <div key={`row-${h}`} className="contents">
@@ -109,8 +90,7 @@ export function DayView({
               {aircraft.map((a, idx) => {
                 const tint = aircraftTint(idx);
                 const acBusy = aircraftBookedAt(a.id, hour);
-                const bookable = schulungMode && instrAvail && !instrBusy && !acBusy;
-                const showHatch = schulungMode && !instrAvail;
+                const bookable = schulungMode && !instrBusy && !acBusy;
                 const href = bookable
                   ? `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}&purpose=schulung&instructor=${schulungInstructorId}`
                   : `/reservations/new?aircraft=${a.id}&date=${dKey}&hour=${hour}`;
@@ -119,8 +99,8 @@ export function DayView({
                     key={`cell-${a.id}-${h}`}
                     href={href}
                     className={`${tint.bg} border-r border-b border-neutral-100 hover:brightness-95 transition-all relative ${
-                      showHatch ? 'unavail-hatch' : ''
-                    } ${bookable ? 'schulung-bookable' : ''}`}
+                      bookable ? 'schulung-bookable' : ''
+                    }`}
                     style={{ height: HOUR_PX }}
                     aria-label={`Neue Reservation ${a.registration} ${hour}:00`}
                   />
@@ -183,9 +163,6 @@ export function DayView({
       </div>
 
       <style>{`
-        .unavail-hatch {
-          background-image: repeating-linear-gradient(135deg, rgba(150,140,110,0.10) 0, rgba(150,140,110,0.10) 4px, rgba(150,140,110,0.22) 4px, rgba(150,140,110,0.22) 5px) !important;
-        }
         .schulung-bookable {
           box-shadow: inset 0 0 0 2px #3B6D11;
         }

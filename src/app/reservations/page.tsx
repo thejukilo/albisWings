@@ -7,7 +7,6 @@ import { SchulungModeToggle } from '@/components/ModeToggle';
 import { DayView } from '@/components/calendar/DayView';
 import { WeekView } from '@/components/calendar/WeekView';
 import { MonthView } from '@/components/calendar/MonthView';
-import type { AvailabilityRow } from '@/components/calendar/AvailabilityTypes';
 import { getRangeForView, type ViewMode } from '@/lib/calendar';
 import type { Aircraft, Instructor, ReservationRow } from '@/lib/types';
 import { parse, isValid } from 'date-fns';
@@ -79,29 +78,6 @@ export default async function ReservationsPage({
     .order('starts_at', { ascending: true });
   const reservations: ReservationRow[] = (rRows ?? []) as ReservationRow[];
 
-  // Load availability only when Schulung-Modus is on
-  let availability: AvailabilityRow[] = [];
-  if (schulungInstructorId) {
-    const { data: avRows } = await supabase
-      .from('instructor_availability')
-      .select('id, instructor_id, period, available, note')
-      .eq('instructor_id', schulungInstructorId);
-    availability = (avRows ?? []).map((a: any) => {
-      const periodStr: string = a.period as string;
-      const match = periodStr.match(/^[\[\(](.+?),(.+?)[\]\)]$/);
-      const startStr = match?.[1].trim().replace(/^"|"$/g, '') ?? '';
-      const endStr   = match?.[2].trim().replace(/^"|"$/g, '') ?? '';
-      return {
-        id: a.id,
-        instructor_id: a.instructor_id,
-        starts_at: new Date(startStr).toISOString(),
-        ends_at:   new Date(endStr).toISOString(),
-        available: a.available,
-        note: a.note,
-      };
-    });
-  }
-
   const aircraftForDay = aircraft.filter(a => selectedAircraft.has(a.id));
 
   return (
@@ -130,8 +106,8 @@ export default async function ReservationsPage({
           />
           <div className="flex-1 min-w-0">
             <CalendarToolbar view={view} anchor={anchor} />
-            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} instructorAvailability={availability} />}
-            {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} instructorAvailability={availability} />}
+            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} />}
+            {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} />}
             {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
           </div>
         </div>

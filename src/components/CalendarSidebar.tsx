@@ -73,7 +73,7 @@ export function CalendarSidebar({
             Mit <strong>{activeInstructor.display_name}</strong>.
           </p>
           <p className="text-[10px] text-neutral-500 leading-tight mt-2">
-            Grüne Slots sind buchbar. Schraffiert = Lehrer nicht verfügbar.
+            Grüne Slots sind buchbar (Lehrer & Flugzeug frei).
           </p>
         </div>
       )}
