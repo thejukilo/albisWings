@@ -189,3 +189,101 @@ export async function cancelReservation(id: string): Promise<{ ok: boolean; erro
   revalidatePath('/');
   return { ok: true };
 }
+
+// =============================================================================
+// Lifecycle: Accept / Return
+// =============================================================================
+
+/** Internal helper: record a reservation_events row. Best-effort; failures logged but not surfaced. */
+async function recordEvent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  reservationId: string,
+  actorId: string,
+  eventType: 'created' | 'updated' | 'accepted' | 'returned' | 'cancelled' | 'restored',
+  details?: string,
+) {
+  const { error } = await supabase
+    .from('reservation_events')
+    .insert({
+      reservation_id: reservationId,
+      actor_id: actorId,
+      event_type: eventType,
+      details: details ?? null,
+    });
+  if (error) console.warn('reservation_event insert failed', error);
+}
+
+export async function acceptReservation(reservationId: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Nicht angemeldet' };
+
+  // Load the reservation to verify ownership + state
+  const { data: res, error: loadErr } = await supabase
+    .from('reservations')
+    .select('id, pilot_id, instructor_id, status, accepted_at, period')
+    .eq('id', reservationId)
+    .maybeSingle();
+  if (loadErr || !res) return { ok: false, error: 'Reservation nicht gefunden.' };
+
+  if (res.status === 'cancelled')        return { ok: false, error: 'Stornierte Reservation kann nicht akzeptiert werden.' };
+  if (res.accepted_at)                   return { ok: false, error: 'Reservation wurde bereits akzeptiert.' };
+
+  // Permission: pilot, instructor, or admin
+  const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+  const myRoles = (roleRows ?? []).map(r => r.role);
+  const isAdmin = myRoles.some(r => ['admin','board','ops_manager'].includes(r));
+  const isInvolved = res.pilot_id === user.id || res.instructor_id === user.id || isAdmin;
+  if (!isInvolved) return { ok: false, error: 'Sie sind nicht berechtigt, diese Reservation zu akzeptieren.' };
+
+  const { error: updErr } = await supabase
+    .from('reservations')
+    .update({ accepted_at: new Date().toISOString(), accepted_by: user.id })
+    .eq('id', reservationId);
+  if (updErr) {
+    return { ok: false, error: updErr.message };
+  }
+
+  await recordEvent(supabase, reservationId, user.id, 'accepted', 'Flugzeug akzeptiert');
+
+  revalidatePath(`/reservations/${reservationId}`);
+  revalidatePath('/reservations');
+  revalidatePath('/');
+  return { ok: true };
+}
+
+export async function returnReservation(reservationId: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Nicht angemeldet' };
+
+  const { data: res, error: loadErr } = await supabase
+    .from('reservations')
+    .select('id, pilot_id, instructor_id, status, accepted_at, returned_at')
+    .eq('id', reservationId)
+    .maybeSingle();
+  if (loadErr || !res) return { ok: false, error: 'Reservation nicht gefunden.' };
+
+  if (!res.accepted_at)  return { ok: false, error: 'Reservation muss zuerst akzeptiert werden.' };
+  if (res.returned_at)   return { ok: false, error: 'Flugzeug wurde bereits zurückgebracht.' };
+
+  const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+  const myRoles = (roleRows ?? []).map(r => r.role);
+  const isAdmin = myRoles.some(r => ['admin','board','ops_manager'].includes(r));
+  const isInvolved = res.pilot_id === user.id || res.instructor_id === user.id || isAdmin;
+  if (!isInvolved) return { ok: false, error: 'Sie sind nicht berechtigt.' };
+
+  // Mark returned + status -> completed
+  const { error: updErr } = await supabase
+    .from('reservations')
+    .update({ returned_at: new Date().toISOString(), returned_by: user.id, status: 'completed' })
+    .eq('id', reservationId);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  await recordEvent(supabase, reservationId, user.id, 'returned', 'Flugzeug zurückgebracht');
+
+  revalidatePath(`/reservations/${reservationId}`);
+  revalidatePath('/reservations');
+  revalidatePath('/');
+  return { ok: true };
+}
