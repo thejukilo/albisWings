@@ -21,6 +21,15 @@ export default async function NewReservationPage({
     .eq('id', user.id)
     .maybeSingle();
 
+  // What roles does the current user have? Drives whether maintenance/standby
+  // options appear in the purpose dropdown.
+  const { data: myRoles } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+  const roles = (myRoles ?? []).map(r => r.role);
+  const canBlockAircraft = roles.some(r => ['admin','board','mechanic','cami'].includes(r));
+
   const sp = await searchParams;
 
   const { data: aircraftRows } = await supabase
@@ -72,6 +81,7 @@ export default async function NewReservationPage({
         <BookingForm
           aircraft={aircraft}
           instructors={instructors}
+          canBlockAircraft={canBlockAircraft}
           defaults={{
             aircraftId: sp.aircraft,
             startsAt,

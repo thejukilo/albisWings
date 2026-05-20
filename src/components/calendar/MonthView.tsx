@@ -55,6 +55,10 @@ export function MonthView({
               </span>
               {visible.map((r) => {
                 const isMine = r.pilot_id === myUserId;
+                const isUnstaffed = r.pilot_id === null;
+                const label = isUnstaffed
+                  ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby')
+                  : isMine ? `${r.pilot_name} (du)` : r.pilot_name;
                 return (
                   <div
                     key={r.id}
@@ -62,7 +66,7 @@ export function MonthView({
                   >
                     <span className="font-mono">{r.registration}</span>
                     {' · '}
-                    <span>{isMine ? `${r.pilot_name} (du)` : r.pilot_name}</span>
+                    <span>{label}</span>
                   </div>
                 );
               })}

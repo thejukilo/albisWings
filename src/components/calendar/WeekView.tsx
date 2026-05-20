@@ -100,6 +100,7 @@ export function WeekView({
                   const topPx    = ((clippedStart - dayStart) / 3_600_000) * HOUR_PX;
                   const heightPx = ((clippedEnd - clippedStart) / 3_600_000) * HOUR_PX;
                   const isMine = r.pilot_id === myUserId;
+                  const isUnstaffed = r.pilot_id === null;
                   return (
                     <Link
                       key={r.id}
@@ -108,7 +109,11 @@ export function WeekView({
                       style={{ top: topPx, height: heightPx, pointerEvents: 'auto' }}
                     >
                       <div className="font-mono font-medium truncate">{r.registration}</div>
-                      <div className="truncate">{isMine ? `${r.pilot_name} (du)` : r.pilot_name}</div>
+                      <div className="truncate">
+                        {isUnstaffed
+                          ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby')
+                          : isMine ? `${r.pilot_name} (du)` : r.pilot_name}
+                      </div>
                     </Link>
                   );
                 })}

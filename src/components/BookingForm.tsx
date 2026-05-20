@@ -6,26 +6,35 @@ import { createClient } from '@/lib/supabase/client';
 import { createReservation } from '@/app/reservations/actions';
 import type { Aircraft, Instructor, PreflightFinding } from '@/lib/types';
 
-const PURPOSES = [
+const PURPOSES_PILOT = [
   { value: 'privat',      label: 'Privat' },
   { value: 'schulung',    label: 'Schulung' },
   { value: 'kommerziell', label: 'Kommerziell' },
   { value: 'clubflug',    label: 'Clubflug' },
 ] as const;
 
+const PURPOSES_STAFF = [
+  ...PURPOSES_PILOT,
+  { value: 'maintenance', label: 'Wartung' },
+  { value: 'standby',     label: 'Standby' },
+] as const;
+
 export function BookingForm({
   aircraft,
   instructors,
+  canBlockAircraft = false,
   defaults,
 }: {
   aircraft: Aircraft[];
   instructors: Instructor[];
+  canBlockAircraft?: boolean;
   defaults: {
     aircraftId?: string;
     startsAt?: string;
     endsAt?: string;
   };
 }) {
+  const PURPOSES = canBlockAircraft ? PURPOSES_STAFF : PURPOSES_PILOT;
   const router = useRouter();
   const supabase = createClient();
   const [pending, startTransition] = useTransition();
@@ -38,6 +47,8 @@ export function BookingForm({
   const [destination,  setDestination]  = useState('');
   const [seats, setSeats] = useState('');
   const [plannedHours, setPlannedHours] = useState('');
+
+  const isUnstaffed = purpose === 'maintenance' || purpose === 'standby';
 
   const [findings, setFindings] = useState<PreflightFinding[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -120,24 +131,28 @@ export function BookingForm({
           ))}
         </select>
 
-        <FieldLabel required>Pilot</FieldLabel>
-        <input
-          value="Van de Velde Lode"
-          readOnly
-          className={`${inputClass} bg-neutral-50 text-neutral-700`}
-        />
+        {!isUnstaffed && (
+          <>
+            <FieldLabel required>Pilot</FieldLabel>
+            <input
+              value="Van de Velde Lode"
+              readOnly
+              className={`${inputClass} bg-neutral-50 text-neutral-700`}
+            />
 
-        <FieldLabel required>Fluglehrer</FieldLabel>
-        <select
-          value={instructorId}
-          onChange={(e) => setInstructorId(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">—</option>
-          {instructors.map((i) => (
-            <option key={i.id} value={i.id}>{i.display_name}</option>
-          ))}
-        </select>
+            <FieldLabel required={purpose === 'schulung'}>Fluglehrer</FieldLabel>
+            <select
+              value={instructorId}
+              onChange={(e) => setInstructorId(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">—</option>
+              {instructors.map((i) => (
+                <option key={i.id} value={i.id}>{i.display_name}</option>
+              ))}
+            </select>
+          </>
+        )}
 
         <FieldLabel required>Von</FieldLabel>
         <input

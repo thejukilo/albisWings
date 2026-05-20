@@ -87,6 +87,7 @@ export function DayView({
                   const topPx    = ((clippedStart - dayStartMs) / 3_600_000) * HOUR_PX;
                   const heightPx = ((clippedEnd - clippedStart) / 3_600_000) * HOUR_PX;
                   const isMine = r.pilot_id === myUserId;
+                  const isUnstaffed = r.pilot_id === null; // maintenance / standby
                   return (
                     <Link
                       key={r.id}
@@ -95,7 +96,9 @@ export function DayView({
                       style={{ top: topPx, height: heightPx, pointerEvents: 'auto' }}
                     >
                       <div className="font-medium truncate">
-                        {isMine ? `${r.pilot_name} (du)` : r.pilot_name}
+                        {isUnstaffed
+                          ? (r.purpose === 'maintenance' ? 'Wartung' : 'Standby')
+                          : isMine ? `${r.pilot_name} (du)` : r.pilot_name}
                       </div>
                       <div className="opacity-90 truncate">{r.remarks ?? r.purpose}</div>
                       <div className="opacity-75 font-mono">
