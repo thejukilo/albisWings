@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function NewReservationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aircraft?: string; date?: string; hour?: string }>;
+  searchParams: Promise<{ aircraft?: string; date?: string; hour?: string; purpose?: string; instructor?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -86,6 +86,8 @@ export default async function NewReservationPage({
             aircraftId: sp.aircraft,
             startsAt,
             endsAt,
+            purpose: sp.purpose,
+            instructorId: sp.instructor,
           }}
         />
       </main>

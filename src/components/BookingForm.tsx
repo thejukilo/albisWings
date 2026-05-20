@@ -32,6 +32,8 @@ export function BookingForm({
     aircraftId?: string;
     startsAt?: string;
     endsAt?: string;
+    purpose?: string;
+    instructorId?: string;
   };
 }) {
   const PURPOSES = canBlockAircraft ? PURPOSES_STAFF : PURPOSES_PILOT;
@@ -42,8 +44,8 @@ export function BookingForm({
   const [aircraftId, setAircraftId] = useState(defaults.aircraftId ?? aircraft[0]?.id ?? '');
   const [startsAt,   setStartsAt]   = useState(defaults.startsAt ?? defaultStartTime());
   const [endsAt,     setEndsAt]     = useState(defaults.endsAt   ?? defaultEndTime(defaults.startsAt));
-  const [purpose,    setPurpose]    = useState<string>('privat');
-  const [instructorId, setInstructorId] = useState<string>('');
+  const [purpose,    setPurpose]    = useState<string>(defaults.purpose ?? 'privat');
+  const [instructorId, setInstructorId] = useState<string>(defaults.instructorId ?? '');
   const [destination,  setDestination]  = useState('');
   const [seats, setSeats] = useState('');
   const [plannedHours, setPlannedHours] = useState('');
