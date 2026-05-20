@@ -90,7 +90,7 @@ export function CalendarSidebar({
             <li>
               <span
                 className="inline-block w-3 h-2.5 align-middle mr-2"
-                style={{ background: 'rgba(163,45,45,0.20)' }}
+                style={{ background: 'rgba(220, 38, 38, 0.32)' }}
               />
               Lehrer anderswo belegt
             </li>

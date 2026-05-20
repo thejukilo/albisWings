@@ -243,10 +243,14 @@ export function WeekView({
 
       <style>{`
         .instructor-busy {
-          background-image:
-            linear-gradient(rgba(163,45,45,0.18), rgba(163,45,45,0.18)),
-            var(--ac-tint, transparent);
-          background-blend-mode: multiply;
+          position: relative;
+        }
+        .instructor-busy::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: rgba(220, 38, 38, 0.32);
+          pointer-events: none;
         }
       `}</style>
     </div>
