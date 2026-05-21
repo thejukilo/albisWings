@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { TopNav } from '@/components/TopNav';
+import { AppShell } from '@/components/AppShell';
 import { BookingForm } from '@/components/BookingForm';
 import type { Aircraft, Instructor } from '@/lib/types';
 
@@ -17,7 +17,7 @@ export default async function NewReservationPage({
 
   const { data: me } = await supabase
     .from('users')
-    .select('id, display_name')
+    .select('id, display_name, first_name, last_name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -72,8 +72,13 @@ export default async function NewReservationPage({
   }
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="reservations" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <main className="max-w-7xl mx-auto px-6 py-10">
         <h1 className="text-3xl font-semibold text-navy-800 mb-1">Reservation</h1>
         <p className="text-xl text-feather font-light mb-8">Flugzeug reservieren</p>
@@ -92,6 +97,11 @@ export default async function NewReservationPage({
           }}
         />
       </main>
-    </>
+    </AppShell>
   );
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }

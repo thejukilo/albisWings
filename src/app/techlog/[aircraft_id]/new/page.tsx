@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { TopNav } from '@/components/TopNav';
+import { AppShell } from '@/components/AppShell';
 import { NewTechlogEntryForm } from '@/components/NewTechlogEntryForm';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export default async function NewTechlogEntryPage({
 
   const { data: me } = await supabase
     .from('users')
-    .select('id, display_name')
+    .select('id, display_name, first_name, last_name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -30,8 +30,13 @@ export default async function NewTechlogEntryPage({
   if (!aircraft) notFound();
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="techlog" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <div className="max-w-3xl mx-auto px-4 py-6">
         <Link href={`/techlog/${aircraft_id}`} className="text-feather hover:text-navy-700 text-sm inline-flex items-center gap-1 mb-3">
           ← Zurück zum Techlog
@@ -48,6 +53,11 @@ export default async function NewTechlogEntryPage({
           <NewTechlogEntryForm aircraftId={aircraft_id} registration={aircraft.registration} />
         </div>
       </div>
-    </>
+    </AppShell>
   );
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }

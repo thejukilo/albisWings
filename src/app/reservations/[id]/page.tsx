@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
-import { TopNav } from '@/components/TopNav';
+import { AppShell } from '@/components/AppShell';
 import { ReservationEditForm } from '@/components/ReservationEditForm';
 import { ReservationLifecycleActions } from '@/components/ReservationLifecycleActions';
 import { AircraftStatusPanel } from '@/components/AircraftStatusPanel';
@@ -47,7 +47,7 @@ export default async function ReservationDetailPage({
 
   const { data: me } = await supabase
     .from('users')
-    .select('id, display_name')
+    .select('id, display_name, first_name, last_name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -169,8 +169,13 @@ export default async function ReservationDetailPage({
   const statusBadge  = STATUS_BADGE[row.status] ?? { label: row.status, cls: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="reservations" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Link
           href="/reservations"
@@ -294,7 +299,7 @@ export default async function ReservationDetailPage({
           </>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }
 
@@ -305,4 +310,9 @@ function DLRow({ label, value }: { label: string; value: React.ReactNode }) {
       <dd className="text-navy-800">{value}</dd>
     </>
   );
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }

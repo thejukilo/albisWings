@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { TopNav } from '@/components/TopNav';
-
+import { AppShell } from '@/components/AppShell';
 export const dynamic = 'force-dynamic';
 
 export default async function TechlogIndex() {
@@ -10,7 +9,7 @@ export default async function TechlogIndex() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: me } = await supabase.from('users').select('display_name').eq('id', user.id).maybeSingle();
+  const { data: me } = await supabase.from('users').select('id, display_name, first_name, last_name').eq('id', user.id).maybeSingle();
 
   const { data: aircraft } = await supabase
     .from('aircraft')
@@ -25,8 +24,13 @@ export default async function TechlogIndex() {
   const statusMap = new Map((status ?? []).map((s) => [s.aircraft_id, s]));
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="techlog" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-3xl font-semibold text-navy-800">Techlog</h1>
@@ -70,6 +74,11 @@ export default async function TechlogIndex() {
           })}
         </div>
       </div>
-    </>
+    </AppShell>
   );
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }

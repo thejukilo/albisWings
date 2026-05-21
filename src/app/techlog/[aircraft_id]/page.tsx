@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { TopNav } from '@/components/TopNav';
+import { AppShell } from '@/components/AppShell';
 import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export default async function AircraftTechlogPage({
 
   const { data: me } = await supabase
     .from('users')
-    .select('id, display_name')
+    .select('id, display_name, first_name, last_name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -46,8 +46,13 @@ export default async function AircraftTechlogPage({
   const isAog = (aogCount ?? 0) > 0;
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="techlog" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <div className="max-w-7xl mx-auto px-4 py-6">
         <Link href="/techlog" className="text-feather hover:text-navy-700 text-sm inline-flex items-center gap-1 mb-3">
           ← Zurück zur Flottenübersicht
@@ -86,7 +91,7 @@ export default async function AircraftTechlogPage({
           <ArList aircraftId={aircraft_id} />
         )}
       </div>
-    </>
+    </AppShell>
   );
 }
 
@@ -363,4 +368,9 @@ async function ArList({ aircraftId }: { aircraftId: string }) {
       </div>
     </div>
   );
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }

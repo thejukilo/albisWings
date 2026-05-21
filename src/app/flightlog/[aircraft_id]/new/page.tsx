@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { TopNav } from '@/components/TopNav';
+import { AppShell } from '@/components/AppShell';
 import { NewFlightForm } from '@/components/NewFlightForm';
 
 export const dynamic = 'force-dynamic';
@@ -71,8 +71,13 @@ export default async function NewFlightPage({
   }
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="flightlog" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <div className="max-w-3xl mx-auto px-4 py-6">
         <Link
           href={reservationId ? `/reservations/${reservationId}` : `/flightlog/${aircraft_id}`}
@@ -110,7 +115,7 @@ export default async function NewFlightPage({
           />
         </div>
       </div>
-    </>
+    </AppShell>
   );
 }
 
@@ -122,4 +127,9 @@ function extractStart(periodStr: string): string | null {
 function extractEnd(periodStr: string): string | null {
   const m = periodStr.match(/,\s*"([^"]+)"\)/);
   return m ? m[1] : null;
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }

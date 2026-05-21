@@ -2,36 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* =============================================================================
+   Flightdesk design system tokens
+   Light mode is default; .fd-theme-dark overrides.
+   ============================================================================= */
+:root {
+  --bg:       #ffffff;
+  --surface:  #fafafa;
+  --surface-2:#f5f5f5;
+  --border:   #e5e5e5;
+  --border-strong: #d4d4d4;
+  --text:     #0a0a0a;
+  --text-2:   #525252;
+  --text-3:   #a3a3a3;
+  --accent:   #3b82f6;
+  --accent-bg:#eff6ff;
+  --success:  #16a34a;
+  --success-bg:#f0fdf4;
+  --warning:  #d97706;
+  --warning-bg:#fffbeb;
+  --danger:   #dc2626;
+  --danger-bg:#fef2f2;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow:    0 4px 16px rgba(0,0,0,0.06);
+}
+
+.fd-theme-dark {
+  --bg:       #0a0a0a;
+  --surface:  #111111;
+  --surface-2:#171717;
+  --border:   #262626;
+  --border-strong: #404040;
+  --text:     #fafafa;
+  --text-2:   #a3a3a3;
+  --text-3:   #525252;
+  --accent:   #60a5fa;
+  --accent-bg:#1e3a8a33;
+  --success:  #22c55e;
+  --success-bg:#14532d33;
+  --warning:  #eab308;
+  --warning-bg:#71370733;
+  --danger:   #ef4444;
+  --danger-bg:#7f1d1d33;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow:    0 4px 16px rgba(0,0,0,0.5);
+}
 
 html, body {
-  background: #FFFFFF;
-  color: #28234B;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* The existing site uses a soft cream divider between nav and body */
-.nav-stripe {
-  background: #F4F3DE;
-  border-top: 1px solid #E8E6C5;
-  border-bottom: 1px solid #E8E6C5;
+/* Tabular figures everywhere by default */
+body { font-variant-numeric: tabular-nums; }
+
+/* Mono helper for ICAO codes, FTC, etc. */
+.fd-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.92em; }
+
+/* Aircraft registration "tag" — the new style replaces the old cream-on-navy plate. */
+.fd-reg {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em; font-weight: 500; letter-spacing: 0.02em;
+  color: var(--text);
 }
 
-/* Tabular numbers for log/data display */
-.tab-data {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Aircraft registration plate */
+/* Keep legacy classes around but neutralized — old pages may still reference them.
+   These are no-ops in the new design; the page itself will be restyled separately. */
 .reg-plate {
-  display: inline-block;
-  padding: 2px 7px;
-  background: #28234B;
-  color: #F4F3DE;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  border-radius: 2px;
-  font-size: 0.82em;
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace; font-weight: 500;
+  letter-spacing: 0.02em; font-size: 0.85em; color: var(--text);
 }
+.tab-data { font-variant-numeric: tabular-nums; }
+.nav-stripe { display: none; } /* old cream divider — gone */

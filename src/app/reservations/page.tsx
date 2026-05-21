@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { TopNav } from '@/components/TopNav';
+import { AppShell } from '@/components/AppShell';
 import { CalendarSidebar } from '@/components/CalendarSidebar';
 import { CalendarToolbar } from '@/components/CalendarToolbar';
 import { SchulungModeToggle } from '@/components/ModeToggle';
@@ -24,7 +24,7 @@ export default async function ReservationsPage({
 
   const { data: me } = await supabase
     .from('users')
-    .select('id, display_name')
+    .select('id, display_name, first_name, last_name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -80,17 +80,22 @@ export default async function ReservationsPage({
   const reservations: ReservationRow[] = (rRows ?? []) as ReservationRow[];
 
   // AOG aircraft: any with open Flight Relevant techlog entries
-const { data: aogRows } = await supabase
-  .from('v_open_techlog')
-  .select('aircraft_id, grounding_defects')
-  .gt('grounding_defects', 0);
-const aogAircraftIds = new Set<string>((aogRows ?? []).map(r => r.aircraft_id));
+  const { data: aogRows } = await supabase
+    .from('v_open_techlog')
+    .select('aircraft_id, grounding_defects')
+    .gt('grounding_defects', 0);
+  const aogAircraftIds = new Set<string>((aogRows ?? []).map(r => r.aircraft_id));
 
   const aircraftForDay = aircraft.filter(a => selectedAircraft.has(a.id));
 
   return (
-    <>
-      <TopNav userName={me?.display_name ?? user.email ?? 'Member'} active="reservations" />
+    <AppShell
+      user={{
+        name: me?.display_name ?? user.email ?? 'Member',
+        initials: initialsOf(me?.first_name, me?.last_name, me?.display_name ?? user.email ?? 'Member'),
+      }}
+      tenantName="Albis Wings"
+    >
       <div className="max-w-[1600px] mx-auto px-4 py-6">
         <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -115,12 +120,17 @@ const aogAircraftIds = new Set<string>((aogRows ?? []).map(r => r.aircraft_id));
           />
           <div className="flex-1 min-w-0">
             <CalendarToolbar view={view} anchor={anchor} />
-              {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} aogAircraftIds={aogAircraftIds} />}
-              {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} aogAircraftIds={aogAircraftIds} />}
-              {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
+            {view === 'day'   && <DayView   date={anchor} aircraft={aircraftForDay} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} aogAircraftIds={aogAircraftIds} />}
+            {view === 'week'  && <WeekView  anchor={anchor} aircraft={aircraft} selectedAircraftIds={selectedAircraft} reservations={reservations} myUserId={user.id} schulungInstructorId={schulungInstructorId} aogAircraftIds={aogAircraftIds} />}
+            {view === 'month' && <MonthView anchor={anchor} reservations={reservations} myUserId={user.id} />}
           </div>
         </div>
       </div>
-    </>
+    </AppShell>
   );
+}
+
+function initialsOf(first?: string | null, last?: string | null, fallback?: string): string {
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return (fallback ?? '?').slice(0, 2).toUpperCase();
 }
